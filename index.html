@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<meta name="description" content="Parlay Lab — Stop Guessing, Start Stacking. Data-driven NCAA basketball parlay analysis.">
+<title>Parlay Lab | Stop Guessing, Start Stacking.</title>
+<style>
+:root{--bg:#07111f;--panel:#0e1d30;--panel2:#142840;--line:#263e58;--text:#eef7ff;--muted:#8fa8bf;--blue:#38bdf8;--cyan:#67e8f9;--green:#4ade80;--amber:#fbbf24;--red:#fb7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#153b5c 0,#07111f 55%);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{border-bottom:1px solid var(--line);background:#07111fe8;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
+.wrap{max-width:1180px;margin:auto;padding:0 18px}.top{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:14px 0}.brand{display:flex;align-items:center;gap:12px}.brand svg{width:46px;height:52px;filter:drop-shadow(0 0 9px #38bdf855)}.brand-name{font-weight:950;font-size:21px;letter-spacing:1.2px}.brand-name span{color:var(--blue)}.tagline{font-size:9px;letter-spacing:2px;color:var(--muted);font-weight:800}.live-pill{border:1px solid #285477;background:#102b43;color:#9bdcff;border-radius:20px;padding:7px 11px;font-size:10px;font-weight:850;letter-spacing:1px}
+nav{display:flex;gap:7px;padding:0 0 12px;overflow:auto}.nav{background:transparent;border:1px solid transparent;color:var(--muted);padding:8px 13px;border-radius:9px;font-weight:800;white-space:nowrap;cursor:pointer}.nav.active{color:white;background:#153651;border-color:#28638c}
+main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;margin:5px 0 20px}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.2px;font-weight:900}.hero h1{font-size:clamp(25px,4vw,36px);letter-spacing:-1px;margin:4px 0}.hero p{color:var(--muted);margin:0;font-size:12px}.date{color:var(--muted);font-size:11px;text-align:right}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 22px}.metric,.panel,.game-card{background:linear-gradient(145deg,#12263d,#0c1a2b);border:1px solid var(--line);border-radius:14px}.metric{padding:13px}.metric label{display:block;color:var(--muted);font-size:9px;font-weight:850;letter-spacing:1.2px}.metric strong{display:block;font-size:25px;margin-top:5px;font-variant-numeric:tabular-nums}.metric small{color:var(--muted);font-size:10px}
+.layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(270px,.8fr);gap:14px}.panel{padding:16px;margin-bottom:14px}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.panel-head h2{font-size:15px;margin:0}.sub{font-size:10px;color:var(--muted)}.section-kicker{font-size:9px;color:var(--cyan);font-weight:900;letter-spacing:1.5px}
+.legs{display:grid;gap:10px}.leg{display:grid;grid-template-columns:30px minmax(0,1fr) 105px;gap:9px;align-items:center;padding:11px;background:#091727;border:1px solid #243c55;border-radius:11px}.leg-num{width:26px;height:26px;border-radius:8px;background:#123b57;color:#8edcff;display:grid;place-items:center;font-weight:900}.leg-fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{min-width:0}.field label{display:block;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.7px;margin:0 0 4px}.field input,.field select{width:100%;min-width:0;background:#102238;border:1px solid #304b66;color:var(--text);border-radius:7px;padding:8px;font:inherit;font-size:11px;outline:none}.field input:focus,.field select:focus{border-color:var(--blue)}.odds-input{font-weight:900!important;font-size:14px!important;text-align:center}.remove{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:10px}.add{background:#102c43;border:1px dashed #34739a;color:#9bdcff;padding:9px 12px;border-radius:8px;font-weight:800;cursor:pointer;width:100%;margin-top:9px}
+.boosts{display:flex;gap:7px;flex-wrap:wrap}.boost{border:1px solid #35516b;background:#0c1d30;color:var(--muted);border-radius:8px;padding:8px 12px;font-weight:850;cursor:pointer}.boost.active{background:#123b55;border-color:#38bdf8;color:#d9f5ff}.calc{background:linear-gradient(130deg,#103451,#0d2338);border:1px solid #28658c;border-radius:12px;padding:15px;margin-top:13px}.calc-top{display:flex;justify-content:space-between;align-items:center;gap:12px}.calc-top label{color:#a8c7dc;font-size:10px;font-weight:850;letter-spacing:1px}.big-odds{font-size:34px;font-weight:950;color:var(--green);letter-spacing:-1px}.calc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.calc-item{background:#071a2a88;border:1px solid #2b526e;border-radius:8px;padding:9px}.calc-item small{display:block;color:#a8c7dc;font-size:9px}.calc-item strong{font-size:16px;display:block;margin-top:3px}.calc-note{color:#9db7ca;font-size:10px;margin-top:10px}
+.games{display:grid;gap:8px}.game-card{padding:12px}.game-top{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px}.teams{display:grid;grid-template-columns:1fr auto;gap:5px;margin-top:9px}.team{font-weight:800}.score{font-weight:950;font-size:17px;font-variant-numeric:tabular-nums}.status{color:var(--cyan);font-size:9px;font-weight:900;letter-spacing:.8px}.empty{padding:20px;text-align:center;border:1px dashed #36516b;border-radius:10px;color:var(--muted);font-size:11px}.notice{border-left:3px solid var(--amber);padding:9px 11px;background:#352b153b;color:#d7c69a;font-size:10px;border-radius:0 7px 7px 0;margin-top:10px}.result-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #263e58;font-size:11px}.result-row:last-child{border:0}.muted{color:var(--muted)}.foot{text-align:center;color:#647f98;font-size:9px;letter-spacing:1.5px;padding:22px 0}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.hero{align-items:flex-start;flex-direction:column}.date{text-align:left}.top{padding:10px 0}.brand svg{width:39px;height:45px}}
+@media(max-width:440px){.wrap{padding:0 12px}.leg{grid-template-columns:26px minmax(0,1fr) 75px;padding:8px}.leg-fields{grid-template-columns:1fr}.metric strong{font-size:22px}.panel{padding:12px}.big-odds{font-size:29px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+ <div class="top">
+  <div class="brand">
+   <svg viewBox="0 0 64 72" fill="none" aria-label="Parlay Lab smoking beaker icon">
+    <path d="M23 8h18M27 8v19L12 57c-3 6 1 10 7 10h26c6 0 10-4 7-10L37 27V8" stroke="#67e8f9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M17 51h30l5 9c1 3-1 5-5 5H18c-4 0-6-2-4-5l3-9Z" fill="#0ea5e9" fill-opacity=".25"/>
+    <path d="M32 50V39m0 0-10-7m10 7 10-7m-10 0V23" stroke="#7dd3fc" stroke-width="2"/>
+    <circle cx="32" cy="39" r="4" fill="#38bdf8"/><circle cx="22" cy="32" r="3" fill="#67e8f9"/><circle cx="42" cy="32" r="3" fill="#67e8f9"/><circle cx="32" cy="23" r="3" fill="#67e8f9"/>
+    <path d="M30 5c-5-5 4-6 1-10m7 10c-4-5 5-7 2-11" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="22" cy="46" r="1.5" fill="#a5f3fc"/><circle cx="42" cy="46" r="1.5" fill="#a5f3fc"/>
+   </svg>
+   <div><div class="brand-name">PARLAY <span>LAB</span></div><div class="tagline">STOP GUESSING, START STACKING.</div></div>
+  </div>
+  <div class="live-pill">NCAA MEN'S · LAB 01</div>
+ </div>
+ <nav>
+  <button class="nav active" data-view="dashboard">Dashboard</button>
+  <button class="nav" data-view="builder">Parlay Builder</button>
+  <button class="nav" data-view="slate">Today's Slate</button>
+  <button class="nav" data-view="results">Results Lab</button>
+ </nav>
+</div></header>
+<main class="wrap">
+ <section class="hero"><div><div class="eyebrow">THE DAILY EXPERIMENT</div><h1>Build smarter parlays.</h1><p>Find the right legs. Test the math. Track every result.</p></div><div class="date" id="today"></div></section>
+ <section class="metrics">
+  <div class="metric"><label>GAMES ON SLATE</label><strong id="gameCount">—</strong><small>ESPN scoreboard</small></div>
+  <div class="metric"><label>PARLAY LEGS</label><strong id="legCount">3</strong><small>Builder selections</small></div>
+  <div class="metric"><label>COMBINED ODDS</label><strong id="metricOdds">—</strong><small>Before boost</small></div>
+  <div class="metric"><label>BOOSTED ODDS</label><strong id="metricBoost">—</strong><small>Selected boost</small></div>
+ </section>
+ <div class="layout">
+  <div>
+   <section class="panel" id="builder">
+    <div class="panel-head"><div><div class="section-kicker">EXPERIMENT 001</div><h2>Three-Leg Parlay Builder</h2></div><span class="sub">Manual odds entry</span></div>
+    <div class="legs" id="legs"></div>
+    <button class="add" id="addLeg" type="button">＋ Add another leg (calculator supports up to 6)</button>
+    <div class="panel-head" style="margin:17px 0 8px"><h2>Profit boost</h2><span class="sub">Applied to net winnings</span></div>
+    <div class="boosts">
+     <button class="boost" data-boost="0">No boost</button><button class="boost active" data-boost="20">20%</button><button class="boost" data-boost="25">25%</button><button class="boost" data-boost="30">30%</button>
+    </div>
+    <div class="calc">
+     <div class="calc-top"><div><label>COMBINED AMERICAN ODDS</label><div class="sub" id="decimalOdds">Decimal —</div></div><div class="big-odds" id="combined">—</div></div>
+     <div class="calc-grid">
+      <div class="calc-item"><small>$10 STAKE · BASE RETURN</small><strong id="baseReturn">—</strong></div>
+      <div class="calc-item"><small>$10 STAKE · BOOSTED RETURN</small><strong id="boostReturn">—</strong></div>
+      <div class="calc-item"><small>BOOSTED AMERICAN ODDS</small><strong id="boostedOdds">—</strong></div>
+     </div>
+     <div class="calc-note" id="calcNote">Enter three American odds values to calculate the parlay. Boosts increase net winnings, not the stake.</div>
+    </div>
+    <div class="notice">Calculator only: odds entered here are user-supplied. Parlay Lab does not yet ingest sportsbook lines or recommend wagers.</div>
+   </section>
+   <section class="panel" id="slate">
+    <div class="panel-head"><div><div class="section-kicker">LIVE DATA</div><h2>Today's NCAA Slate</h2></div><button class="boost" id="refresh" type="button">↻ Refresh</button></div>
+    <div class="sub" id="feedStatus">Connecting to ESPN scoreboard…</div><div class="games" id="games" style="margin-top:10px"><div class="empty">Loading NCAA games…</div></div>
+   </section>
+  </div>
+  <aside>
+   <section class="panel">
+    <div class="panel-head"><h2>Lab Parameters</h2><span class="section-kicker">TARGETS</span></div>
+    <div class="result-row"><span class="muted">Leg count</span><strong>3 selections</strong></div>
+    <div class="result-row"><span class="muted">Individual odds</span><strong>-400 to -600</strong></div>
+    <div class="result-row"><span class="muted">Target boosted payout</span><strong style="color:var(--green)">+100 to +150</strong></div>
+    <div class="result-row"><span class="muted">Markets</span><strong>Team unders / Game over</strong></div>
+    <div class="result-row"><span class="muted">Initial league</span><strong>NCAA Men's</strong></div>
+    <p class="sub" style="margin:12px 0 0">These are research filters, not assumptions that a combination is profitable.</p>
+   </section>
+   <section class="panel" id="results">
+    <div class="panel-head"><h2>Results Lab</h2><span class="section-kicker">COMING NEXT</span></div>
+    <div class="empty">Once odds ingestion and settled results are connected, this area will track hit rate, profit/loss, ROI, and performance by leg type.</div>
+   </section>
+   <section class="panel">
+    <div class="panel-head"><h2>Data integrity</h2></div>
+    <div class="result-row"><span class="muted">Score source</span><strong>ESPN</strong></div>
+    <div class="result-row"><span class="muted">Odds source</span><strong>Not connected</strong></div>
+    <div class="result-row"><span class="muted">Signal engine</span><strong>Not active</strong></div>
+    <div class="result-row"><span class="muted">Mode</span><strong style="color:var(--cyan)">Prototype</strong></div>
+   </section>
+  </aside>
+ </div>
+ <div class="foot">PARLAY LAB · STOP GUESSING, START STACKING · DATA BEFORE PICKS</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let legs=[
+ {market:"Team total under",event:"Select matchup / team",selection:"Team under",odds:-500},
+ {market:"Team total under",event:"Select matchup / team",selection:"Team under",odds:-500},
+ {market:"Game total over",event:"Select matchup",selection:"Game over",odds:-500}
+];
+let boost=20,games=[];
+function americanToDecimal(a){a=Number(a);if(!Number.isFinite(a)||a===0)return null;return a>0?1+a/100:1+100/Math.abs(a)}
+function decimalToAmerican(d){if(!(d>1))return null;return d>=2?Math.round((d-1)*100):Math.round(-100/(d-1))}
+function money(n){return "$"+n.toFixed(2)}
+function renderLegs(){
+ $('legs').innerHTML=legs.map((l,i)=>`<div class="leg">
+  <div class="leg-num">${i+1}</div>
+  <div class="leg-fields">
+   <div class="field"><label>MARKET</label><select data-i="${i}" data-k="market"><option ${l.market==="Team total under"?"selected":""}>Team total under</option><option ${l.market==="Game total over"?"selected":""}>Game total over</option><option ${l.market==="Team total over"?"selected":""}>Team total over</option><option ${l.market==="Game total under"?"selected":""}>Game total under</option></select></div>
+   <div class="field"><label>GAME / TEAM</label><input data-i="${i}" data-k="event" value="${esc(l.event)}" placeholder="Matchup / team"></div>
+   <div class="field"><label>SELECTION / LINE</label><input data-i="${i}" data-k="selection" value="${esc(l.selection)}" placeholder="e.g. Under 67.5"></div>
+   <div class="field"><label>AMERICAN ODDS</label><input class="odds-input" data-i="${i}" data-k="odds" type="number" step="1" value="${l.odds}" placeholder="-500"></div>
+  </div>
+  <button class="remove" data-remove="${i}" title="Remove leg" ${legs.length<=2?"disabled":""}>REMOVE</button>
+ </div>`).join("");
+ $('legCount').textContent=legs.length;
+}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function calculate(){
+ const ds=legs.map(l=>americanToDecimal(l.odds));
+ const valid=ds.length>=2&&ds.every(d=>d!==null);
+ if(!valid){["combined","metricOdds","metricBoost","boostedOdds","baseReturn","boostReturn","decimalOdds"].forEach(id=>$(id).textContent="—");$("calcNote").textContent="Enter valid non-zero American odds for every leg.";return}
+ const dec=ds.reduce((a,b)=>a*b,1),baseProfit=10*(dec-1),boostedProfit=baseProfit*(1+boost/100),boostDec=1+boostedProfit/10;
+ const base=decimalToAmerican(dec),boosted=decimalToAmerican(boostDec);
+ $("combined").textContent=(base>0?"+":"")+base;
+ $("metricOdds").textContent=(base>0?"+":"")+base;
+ $("metricBoost").textContent=(boosted>0?"+":"")+boosted;
+ $("boostedOdds").textContent=(boosted>0?"+":"")+boosted;
+ $("decimalOdds").textContent="Decimal "+dec.toFixed(3);
+ $("baseReturn").textContent=money(10+baseProfit);
+ $("boostReturn").textContent=money(10+boostedProfit);
+ $("calcNote").textContent="A $10 stake returns "+money(10+boostedProfit)+" with a "+boost+"% profit boost, including the original stake. This is a mathematical estimate; sportsbook promo rules may differ.";
+}
+$('legs').addEventListener('input',e=>{const i=e.target.dataset.i,k=e.target.dataset.k;if(i===undefined||!k)return;legs[Number(i)][k]=k==="odds"?Number(e.target.value):e.target.value;calculate()});
+$('legs').addEventListener('change',e=>{const i=e.target.dataset.i,k=e.target.dataset.k;if(i===undefined||!k)return;legs[Number(i)][k]=k==="odds"?Number(e.target.value):e.target.value;calculate()});
+$('legs').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){legs.splice(Number(e.target.dataset.remove),1);renderLegs();calculate()}});
+$('addLeg').addEventListener('click',()=>{if(legs.length>=6)return;legs.push({market:"Team total under",event:"Select matchup / team",selection:"Team under",odds:-500});renderLegs();calculate()});
+document.querySelectorAll('[data-boost]').forEach(b=>b.addEventListener('click',()=>{boost=Number(b.dataset.boost);document.querySelectorAll('[data-boost]').forEach(x=>x.classList.toggle('active',x===b));calculate()}));
+document.querySelectorAll('.nav').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===b));const v=b.dataset.view;const target=v==="dashboard"?document.querySelector('.hero'):v==="builder"?$('builder'):v==="slate"?$('slate'):$('results');target.scrollIntoView({behavior:'smooth',block:'start'})}));
+function renderGames(){
+ $('gameCount').textContent=games.length;
+ if(!games.length){$('games').innerHTML='<div class="empty">No NCAA games are listed for this date. Check back during the season or refresh.</div>';return}
+ $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?"Period "+g.period+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
+}
+async function loadGames(){
+ $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
+ try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];renderGames();$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();}
+ catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
+ finally{$('refresh').disabled=false}
+}
+$('refresh').addEventListener('click',loadGames);
+$('today').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+renderLegs();calculate();loadGames();
+</script>
+</body></html>
