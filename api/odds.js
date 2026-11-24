@@ -1,3 +1,85 @@
+function toDecimal(american) {
+  const a = Number(american);
+  if (!Number.isFinite(a) || a === 0) return null;
+  return a > 0 ? 1 + a / 100 : 1 + 100 / Math.abs(a);
+}
+function toAmerican(decimal) {
+  if (!(decimal > 1)) return null;
+  return decimal >= 2 ? Math.round((decimal - 1) * 100) : Math.round(-100 / (decimal - 1));
+}
+function legFrom(event, book, market, outcome) {
+  return {
+    eventId: event.id,
+    matchup: event.away_team + " at " + event.home_team,
+    team: market.team || null,
+    market: market.team ? "Team total under" : "Game total over",
+    side: outcome.name,
+    point: outcome.point ?? null,
+    price: Number(outcome.price),
+    bookKey: book.key,
+    bookTitle: book.title || book.key,
+    bookLink: book.link || null,
+    lineType: market.line_type || "main"
+  };
+}
+function buildOpportunities(events) {
+  const byBook = new Map();
+  for (const event of events) {
+    for (const book of (event.bookmakers || [])) {
+      if (!byBook.has(book.key)) byBook.set(book.key, { title: book.title || book.key, under: [], over: [] });
+      const bucket = byBook.get(book.key);
+      for (const market of (book.markets || [])) {
+        if (market.key !== "totals" || (market.period && market.period !== "full")) continue;
+        for (const outcome of (market.outcomes || [])) {
+          const side = String(outcome.name || "").toLowerCase();
+          const price = Number(outcome.price);
+          if (!Number.isFinite(price) || price > -400 || price < -600) continue;
+          const leg = legFrom(event, book, market, outcome);
+          if (market.team && side === "under") bucket.under.push(leg);
+          if (!market.team && side === "over") bucket.over.push(leg);
+        }
+      }
+    }
+  }
+
+  const exact = [];
+  const near = [];
+  let examined = 0;
+  for (const [bookKey, bucket] of byBook) {
+    const under = bucket.under;
+    const over = bucket.over;
+    for (let i = 0; i < under.length; i++) {
+      for (let j = i + 1; j < under.length; j++) {
+        if (under[i].eventId === under[j].eventId) continue;
+        for (let k = 0; k < over.length; k++) {
+          if (over[k].eventId === under[i].eventId || over[k].eventId === under[j].eventId) continue;
+          if (++examined > 50000) break;
+          const legs = [under[i], under[j], over[k]];
+          const decimal = legs.reduce((product, leg) => product * toDecimal(leg.price), 1);
+          const baseAmerican = toAmerican(decimal);
+          const boostedDecimal = 1 + (decimal - 1) * 1.2;
+          const boostedAmerican = toAmerican(boostedDecimal);
+          const item = {
+            bookKey, bookTitle: bucket.title, legs,
+            baseAmerican, boostedAmerican, decimal: Number(decimal.toFixed(4)),
+            boostedDecimal: Number(boostedDecimal.toFixed(4)),
+            boostPercent: 20
+          };
+          if (boostedAmerican >= 100 && boostedAmerican <= 150) exact.push(item);
+          else near.push({ ...item, distance: Math.min(Math.abs(boostedAmerican - 100), Math.abs(boostedAmerican - 150)) });
+        }
+        if (examined > 50000) break;
+      }
+      if (examined > 50000) break;
+    }
+    if (examined > 50000) break;
+  }
+  const sort = (a, b) => Math.abs(a.boostedAmerican - 125) - Math.abs(b.boostedAmerican - 125);
+  exact.sort(sort);
+  near.sort(sort);
+  return { opportunities: exact.slice(0, 30), nearMisses: near.slice(0, 12), combinationsExamined: examined };
+}
+
 export default async function handler(req, res) {
   const apiKey = process.env.PROPLINE_API_KEY;
   if (!apiKey) {
@@ -6,7 +88,7 @@ export default async function handler(req, res) {
 
   try {
     const url = new URL("https://api.prop-line.com/v1/sports/basketball_ncaab/odds");
-    url.searchParams.set("markets", "h2h,spreads,totals");
+    url.searchParams.set("markets", "totals");
     url.searchParams.set("includeLinks", "true");
 
     const response = await fetch(url, {
@@ -16,6 +98,8 @@ export default async function handler(req, res) {
 
     const dailyRemaining = response.headers.get("X-Daily-Remaining");
     const dailyUsed = response.headers.get("X-Daily-Used");
+    const rateLimitRemaining = response.headers.get("RateLimit-Remaining");
+    const missingMarkets = response.headers.get("X-PropLine-Missing-Markets");
     const body = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -28,14 +112,8 @@ export default async function handler(req, res) {
     }
 
     const events = Array.isArray(body) ? body : (body.events || body.data || []);
-    const allowedBooks = new Set([
-      "draftkings", "fanduel", "betmgm", "betrivers", "fanatics",
-      "hardrock", "fliff", "bovada", "pinnacle"
-    ]);
-
     const normalized = events.map(event => {
       const bookmakers = (event.bookmakers || [])
-        .filter(book => !allowedBooks.size || allowedBooks.has(book.key))
         .map(book => ({
           key: book.key,
           title: book.title || book.key,
@@ -52,6 +130,7 @@ export default async function handler(req, res) {
                 .filter(outcome => ["over", "under"].includes(String(outcome.name || "").toLowerCase()))
                 .map(outcome => ({
                   name: outcome.name,
+                  description: outcome.description || null,
                   point: outcome.point ?? null,
                   price: outcome.price ?? null
                 }))
@@ -76,8 +155,9 @@ export default async function handler(req, res) {
       sum + event.bookmakers.reduce((bookSum, book) =>
         bookSum + book.markets.filter(market => market.team).length, 0), 0);
     const gameTotalMarkets = totalMarkets - teamTotalMarkets;
+    const scan = buildOpportunities(normalized);
 
-    res.setHeader("Cache-Control", "s-maxage=20, stale-while-revalidate=40");
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
     return res.status(200).json({
       source: "PropLine",
       sport: "basketball_ncaab",
@@ -88,6 +168,9 @@ export default async function handler(req, res) {
       gameTotalMarkets,
       dailyRemaining,
       dailyUsed,
+      rateLimitRemaining,
+      missingMarkets,
+      ...scan,
       events: normalized
     });
   } catch (error) {
