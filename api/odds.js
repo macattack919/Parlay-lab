@@ -10,7 +10,7 @@ function toAmerican(decimal) {
 function legFrom(event, book, market, outcome) {
   return {
     eventId: event.id,
-    matchup: event.away_team + " at " + event.home_team,
+    matchup: (event.awayTeam || event.away_team || "Away") + " at " + (event.homeTeam || event.home_team || "Home"),
     team: market.team || null,
     market: market.team ? "Team total under" : "Game total over",
     side: outcome.name,
