@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     const part = type => parts.find(item => item.type === type)?.value || "";
     const today = `${part("year")}${part("month")}${part("day")}`;
     const requestedDate = String(req.query?.date || today).replace(/[^0-9]/g, "");
-    if (!/^\\d{8}$/.test(requestedDate)) return res.status(400).json({ error: "Invalid date. Use YYYYMMDD." });
+    if (!/^\d{8}$/.test(requestedDate)) return res.status(400).json({ error: "Invalid date. Use YYYYMMDD." });
     const params = new URLSearchParams({ limit: "500", dates: requestedDate, groups: LEAGUE.groups });
     const response = await fetch(`${SITE_BASE}/scoreboard?${params}`, { headers: { Accept: "application/json", "Cache-Control": "no-cache" } });
     if (!response.ok) throw new Error(`ESPN request failed (${response.status})`);
