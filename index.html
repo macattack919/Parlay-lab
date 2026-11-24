@@ -115,21 +115,6 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
 const $=id=>document.getElementById(id);
 let games=[];
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function calculate(){
- const ds=legs.map(l=>americanToDecimal(l.odds));
- const valid=ds.length>=2&&ds.every(d=>d!==null);
- if(!valid){["combined","metricOdds","metricBoost","boostedOdds","baseReturn","boostReturn","decimalOdds"].forEach(id=>$(id).textContent="—");$("calcNote").textContent="Enter valid non-zero American odds for every leg.";return}
- const dec=ds.reduce((a,b)=>a*b,1),baseProfit=10*(dec-1),boostedProfit=baseProfit*(1+boost/100),boostDec=1+boostedProfit/10;
- const base=decimalToAmerican(dec),boosted=decimalToAmerican(boostDec);
- $("combined").textContent=(base>0?"+":"")+base;
- $("metricOdds").textContent=(base>0?"+":"")+base;
- $("metricBoost").textContent=(boosted>0?"+":"")+boosted;
- $("boostedOdds").textContent=(boosted>0?"+":"")+boosted;
- $("decimalOdds").textContent="Decimal "+dec.toFixed(3);
- $("baseReturn").textContent=money(10+baseProfit);
- $("boostReturn").textContent=money(10+boostedProfit);
- $("calcNote").textContent="A $10 stake returns "+money(10+boostedProfit)+" with a "+boost+"% profit boost, including the original stake. This is a mathematical estimate; sportsbook promo rules may differ.";
-}
 function renderGames(){
  $('gameCount').textContent=games.length;
  if(!games.length){$('games').innerHTML='<div class="empty">No NCAA games are listed for this date. Check back during the season or refresh.</div>';return}
