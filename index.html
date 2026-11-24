@@ -86,8 +86,12 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
      <div class="metric"><label>TEAM TOTAL MARKETS</label><strong id="teamTotalCount">—</strong></div>
      <div class="metric"><label>GAME TOTAL MARKETS</label><strong id="gameTotalCount">—</strong></div>
     </div>
+    <div class="panel-head" style="margin:18px 0 8px"><div><div class="section-kicker">AUTOMATED SCAN</div><h2>Three-Leg Opportunities</h2></div><span class="sub">2 team unders + 1 game over</span></div>
+    <div class="sub" id="scanSummary">Searching same-book combinations across separate games. Target: +100 to +150 after a 20% boost.</div>
+    <div class="games" id="opportunityList" style="margin-top:10px"><div class="empty">Waiting for the first odds scan.</div></div>
+    <div class="panel-head" style="margin:18px 0 8px"><h2>Available market lines</h2><span class="sub">By sportsbook</span></div>
     <div class="games" id="oddsGamesList"><div class="empty">Scan the slate to retrieve current sportsbook totals.</div></div>
-    <div class="notice">Odds are market data, not betting recommendations. Lines may be correlated; the parlay calculator does not assume same-game legs are independent.</div>
+    <div class="notice">Opportunities are mathematical screens, not betting recommendations. The scanner requires all three legs to be from the same sportsbook and three different games to avoid same-game correlation. Actual book acceptance, promo eligibility, and settlement rules must be checked.</div>
    </section>
   </div>
   <aside>
@@ -174,11 +178,28 @@ async function loadGames(){
 }
 $('refresh').addEventListener('click',loadGames);
 function fmtOdds(price){if(price===null||price===undefined)return "—";return Number(price)>0?"+"+price:String(price)}
+function renderOpportunities(data){
+ const picks=data.opportunities||[];
+ $('scanSummary').textContent=(data.combinationsExamined||0).toLocaleString()+" combinations screened · exact target: +100 to +150 after 20% boost. "+(picks.length?"Showing "+picks.length+" matches.":"No exact matches on this scan.");
+ if(!picks.length){
+  const near=data.nearMisses||[];
+  $('opportunityList').innerHTML=near.length?'<div class="empty">No combinations hit the target exactly. Closest combinations are shown below as near misses.</div>'+near.slice(0,5).map(renderOpportunity).join(""):'<div class="empty">No qualifying three-leg combinations yet. This can happen when the slate has limited alternate team-total lines or prices outside the -400 to -600 range.</div>';
+  return;
+ }
+ $('opportunityList').innerHTML=picks.map(renderOpportunity).join("");
+}
+function renderOpportunity(item){
+ return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">20% BOOST → +'+item.boostedAmerican+'</span></div>'+
+ item.legs.map((leg,i)=>'<div class="result-row"><span><strong>'+ (i+1)+'. '+esc(leg.market)+'</strong><br><span class="muted">'+esc(leg.team?leg.team+' · '+leg.matchup:leg.matchup)+' · '+(leg.point??'—')+'</span></span><span style="text-align:right"><strong>'+fmtOdds(leg.price)+'</strong>'+(leg.bookLink?'<br><a href="'+esc(leg.bookLink)+'" target="_blank" rel="noopener" style="color:var(--cyan);font-size:9px">Book link ↗</a>':'')+'</span></div>').join("")+
+ '<div class="result-row"><span class="muted">Combined before boost</span><strong>'+(item.baseAmerican>0?'+':'')+item.baseAmerican+'</strong></div>'+
+ '<div class="result-row"><span class="muted">Combined after 20% boost</span><strong style="color:var(--green)">+'+item.boostedAmerican+'</strong></div></div>';
+}
 function renderOdds(data){
  const events=data.events||[];
  $('oddsGames').textContent=events.length;
  $('teamTotalCount').textContent=data.teamTotalMarkets??0;
  $('gameTotalCount').textContent=data.gameTotalMarkets??0;
+ renderOpportunities(data);
  if(!events.length){$('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';return}
  $('oddsGamesList').innerHTML=events.map(event=>{
   const rows=[];
@@ -188,9 +209,9 @@ function renderOdds(data){
    const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
    rows.push({book:book.title,label,point:over?.point??under?.point,over,under,link:book.link});
   }));
-  return `<div class="game-card"><div class="game-top"><strong>${esc(event.awayTeam)} at ${esc(event.homeTeam)}</strong><span class="status">${event.live?"LIVE":"PREGAME"}</span></div>
-   ${rows.map(row=>`<div class="result-row"><span><strong>${esc(row.book)}</strong><br><span class="muted">${esc(row.label)} · ${row.point??"—"}</span></span><span style="text-align:right"><strong>O ${fmtOdds(row.over?.price)}</strong><br><strong>U ${fmtOdds(row.under?.price)}</strong></span></div>`).join("")}
-  </div>`;
+  return '<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(event.live?'LIVE':'PREGAME')+'</span></div>'+
+   rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
+  '</div>';
  }).join("");
 }
 async function loadOdds(){
