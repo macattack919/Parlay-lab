@@ -78,6 +78,17 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
     <div class="panel-head"><div><div class="section-kicker">LIVE DATA</div><h2>Today's NCAA Slate</h2></div><button class="boost" id="refresh" type="button">↻ Refresh</button></div>
     <div class="sub" id="feedStatus">Connecting to ESPN scoreboard…</div><div class="games" id="games" style="margin-top:10px"><div class="empty">Loading NCAA games…</div></div>
    </section>
+   <section class="panel" id="oddsBoard">
+    <div class="panel-head"><div><div class="section-kicker">PROPLINE · LIVE ODDS</div><h2>Team Totals & Game Totals</h2></div><button class="boost" id="refreshOdds" type="button">↻ Scan odds</button></div>
+    <div class="sub" id="oddsStatus">Waiting for PropLine connection…</div>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin:12px 0">
+     <div class="metric"><label>GAMES WITH ODDS</label><strong id="oddsGames">—</strong></div>
+     <div class="metric"><label>TEAM TOTAL MARKETS</label><strong id="teamTotalCount">—</strong></div>
+     <div class="metric"><label>GAME TOTAL MARKETS</label><strong id="gameTotalCount">—</strong></div>
+    </div>
+    <div class="games" id="oddsGamesList"><div class="empty">Scan the slate to retrieve current sportsbook totals.</div></div>
+    <div class="notice">Odds are market data, not betting recommendations. Lines may be correlated; the parlay calculator does not assume same-game legs are independent.</div>
+   </section>
   </div>
   <aside>
    <section class="panel">
@@ -162,7 +173,42 @@ async function loadGames(){
  finally{$('refresh').disabled=false}
 }
 $('refresh').addEventListener('click',loadGames);
+function fmtOdds(price){if(price===null||price===undefined)return "—";return Number(price)>0?"+"+price:String(price)}
+function renderOdds(data){
+ const events=data.events||[];
+ $('oddsGames').textContent=events.length;
+ $('teamTotalCount').textContent=data.teamTotalMarkets??0;
+ $('gameTotalCount').textContent=data.gameTotalMarkets??0;
+ if(!events.length){$('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';return}
+ $('oddsGamesList').innerHTML=events.map(event=>{
+  const rows=[];
+  event.bookmakers.forEach(book=>book.markets.forEach(market=>{
+   const label=market.team?market.team+" team total":"Full-game total";
+   const over=market.outcomes.find(o=>String(o.name).toLowerCase()==="over");
+   const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
+   rows.push({book:book.title,label,point:over?.point??under?.point,over,under,link:book.link});
+  }));
+  return `<div class="game-card"><div class="game-top"><strong>${esc(event.awayTeam)} at ${esc(event.homeTeam)}</strong><span class="status">${event.live?"LIVE":"PREGAME"}</span></div>
+   ${rows.map(row=>`<div class="result-row"><span><strong>${esc(row.book)}</strong><br><span class="muted">${esc(row.label)} · ${row.point??"—"}</span></span><span style="text-align:right"><strong>O ${fmtOdds(row.over?.price)}</strong><br><strong>U ${fmtOdds(row.under?.price)}</strong></span></div>`).join("")}
+  </div>`;
+ }).join("");
+}
+async function loadOdds(){
+ $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOdds').disabled=true;
+ try{
+  const response=await fetch('/api/odds',{cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||("Request failed "+response.status));
+  renderOdds(data);
+  const quota=data.dailyRemaining?(" · "+data.dailyRemaining+" API requests remaining today"):"";
+  $('oddsStatus').textContent="PropLine · Updated "+new Date(data.updated).toLocaleTimeString()+quota;
+ }catch(error){
+  $('oddsStatus').textContent="Odds feed unavailable: "+error.message;
+  $('oddsGamesList').innerHTML='<div class="empty">Check that PROPLINE_API_KEY is set in Vercel, then redeploy. '+esc(error.message)+'</div>';
+ }finally{$('refreshOdds').disabled=false}
+}
+$('refreshOdds').addEventListener('click',loadOdds);
 $('today').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-renderLegs();calculate();loadGames();
+renderLegs();calculate();loadGames();loadOdds();
 </script>
 </body></html>
