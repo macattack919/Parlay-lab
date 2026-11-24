@@ -1,0 +1,11 @@
+{
+  "name": "parlay-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "devDependencies": {
+    "vercel": "^39.2.2"
+  }
+}
