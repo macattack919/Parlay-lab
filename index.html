@@ -164,10 +164,10 @@ function renderGames(){
  $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?formatHalf(g.period)+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
 }
 async function loadGames(){
- $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
+ $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;$('floatingRefresh').disabled=true;
  try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];renderGames();$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();}
  catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
- finally{$('refresh').disabled=false}
+ finally{$('refresh').disabled=false;$('floatingRefresh').disabled=false}
 }
 $('refresh').addEventListener('click',loadGames);
 function fmtOdds(price){if(price===null||price===undefined)return "—";return Number(price)>0?"+"+price:String(price)}
@@ -381,7 +381,7 @@ $('floatingRefresh').addEventListener('click',()=>{
 setInterval(() => { if (!document.hidden) loadLive(); }, 30000);
 
 async function loadOdds(){
- $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;
+ $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;$('floatingRefresh').disabled=true;
  try{
   const response=await fetch('/api/odds',{cache:'no-store'});
   const data=await response.json();
@@ -393,7 +393,7 @@ async function loadOdds(){
  }catch(error){
   $('oddsStatus').textContent="Odds feed unavailable: "+error.message;
   $('oddsGamesList').innerHTML='<div class="empty">Check that PROPLINE_API_KEY is set in Vercel, then redeploy. '+esc(error.message)+'</div>';
- }finally{$('refreshOddsBoard').disabled=false}
+ }finally{$('refreshOddsBoard').disabled=false;$('floatingRefresh').disabled=false}
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 
