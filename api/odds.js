@@ -95,6 +95,7 @@ export default async function handler(req, res) {
   try {
     const url = new URL("https://api.prop-line.com/v1/sports/basketball_ncaab/odds");
     url.searchParams.set("markets", "totals");
+    url.searchParams.set("bookmakers", "fanduel,draftkings");
     url.searchParams.set("includeLinks", "true");
 
     const response = await fetch(url, {
