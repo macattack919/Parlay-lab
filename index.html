@@ -442,7 +442,7 @@ function renderSignalHistory(){
 }
 function notifySignal(item){
  if(!window.Notification || Notification.permission!=="granted")return;
- try{new Notification("PARLAY LAB · "+item.label,{body:item.matchup+" · "+item.pick+" · Live total "+item.line+" · "+item.clock,tag:item.gameId+"-"+item.id,renotify:false});}catch{}
+ try{new Notification("PARLAY LAB · "+item.label,{body:item.matchup+" · "+item.pick+" · Live total "+item.line+" · "+(item.books||"")+" · "+item.clock,tag:item.gameId+"-"+item.id,renotify:false});}catch{}
 }
 function evaluateSignalBoard(data){
  const all=[];
@@ -457,7 +457,7 @@ function evaluateSignalBoard(data){
    const key=signal.gameId+"|"+signal.id;
    const exists=signalHistory.some(item=>item.key===key);
    if(!exists){
-    const item={key,id:signal.id,label:signal.label,gameId:signal.gameId,matchup:signal.matchup,pick:signal.pick,line:signal.marketLine,triggeredAt:new Date().toISOString(),clock:signal.clock,score:signal.currentTotal,marketAgeSeconds:signal.marketAgeSeconds,result:"OPEN",finalTotal:null};
+    const item={key,id:signal.id,label:signal.label,gameId:signal.gameId,matchup:signal.matchup,pick:signal.pick,line:signal.marketLine,triggeredAt:new Date().toISOString(),clock:signal.clock,score:signal.currentTotal,marketAgeSeconds:signal.marketAgeSeconds,books:signal.books,result:"OPEN",finalTotal:null};
     signalHistory.push(item);saveSignalHistory();notifySignal({...item,clock:signal.clock});
    }
   });
