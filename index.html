@@ -254,7 +254,7 @@ function renderLiveGames(data) {
   const lines = liveTotalMarket(g);
   const consensusLine = lines?.reduce((sum,line)=>sum+line.point,0)/(lines?.length||1);
   const neededPace = lines && Number.isFinite(remaining) && remaining>0 ? (consensusLine-current)/remaining : null;
-  const edge = lines && Number.isFinite(Number(p.total)) ? Number(p.total)-consensusLine : null;
+  const edge = lines && p.total!==null && p.total!==undefined && Number.isFinite(Number(p.total)) ? Number(p.total)-consensusLine : null;
   const signal = edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
   const signalColor = signal==='OVER' ? '#22c55e' : signal==='UNDER' ? '#ef4444' : '#eab308';
   const signalLabel = signal==='OVER' ? 'GREEN · OVER' : signal==='UNDER' ? 'RED · UNDER' : 'YELLOW · WATCH';
@@ -310,6 +310,6 @@ async function loadOdds(){
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 $('today').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);
+loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
 </script>
 </body></html>
