@@ -132,7 +132,7 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
  </section>
  <div class="foot">PARLAY LAB · STOP GUESSING, START STACKING · DATA BEFORE PICKS</div>
 </main>
-<button class="floating-refresh" id="floatingRefreshLive" type="button" aria-label="Refresh live game data" hidden><span class="refresh-symbol">↻</span> Refresh live games</button>
+<button class="floating-refresh" id="floatingRefresh" type="button" aria-label="Refresh current board" hidden><span class="refresh-symbol">↻</span> <span id="floatingRefreshLabel">Refresh live games</span></button>
 <script>
 const $=id=>document.getElementById(id);
 function showPage(view){
@@ -140,7 +140,15 @@ function showPage(view){
  if(!target)return;
  document.querySelectorAll('.page').forEach(page=>page.classList.toggle('active',page===target));
  document.querySelectorAll('nav .nav').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
- $('floatingRefreshLive').hidden=view!=='live';
+ const refreshConfig={
+  live:{label:"Refresh live games",action:loadLive},
+  odds:{label:"Refresh lines",action:loadOdds},
+  pregame:{label:"Scan pregame odds",action:loadOdds},
+  slate:{label:"Refresh scores",action:loadGames}
+ };
+ const config=refreshConfig[view];
+ $('floatingRefresh').hidden=!config;
+ if(config){$('floatingRefreshLabel').textContent=config.label;$('floatingRefresh').dataset.view=view;}
  window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('nav .nav[data-view]').forEach(button=>{
@@ -351,7 +359,7 @@ function renderLiveGames(data) {
 async function loadLive() {
  $('liveStatus').textContent = 'Refreshing ESPN game state and GFI projections…';
  $('refreshLive').disabled = true;
- $('floatingRefreshLive').disabled = true;
+ $('floatingRefresh').disabled = true;
  try {
   const response = await fetch('/api/live', { cache: 'no-store' });
   const data = await response.json();
@@ -362,10 +370,14 @@ async function loadLive() {
  } catch (error) {
   $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
   $('liveGamesList').innerHTML = '<div class="empty">Could not load live game details. ' + esc(error.message) + '</div>';
- } finally { $('refreshLive').disabled = false; $('floatingRefreshLive').disabled = false; }
+ } finally { $('refreshLive').disabled = false; $('floatingRefresh').disabled = false; }
 }
 $('refreshLive').addEventListener('click', loadLive);
-$('floatingRefreshLive').addEventListener('click', loadLive);
+$('floatingRefresh').addEventListener('click',()=>{
+ const actions={live:loadLive,odds:loadOdds,pregame:loadOdds,slate:loadGames};
+ const action=actions[$('floatingRefresh').dataset.view];
+ if(action)action();
+});
 setInterval(() => { if (!document.hidden) loadLive(); }, 30000);
 
 async function loadOdds(){
