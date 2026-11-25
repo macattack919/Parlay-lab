@@ -199,26 +199,26 @@ function findScoreGame(event){
  });
 }
 function oddsBoardSignal(event, score){
- if(!score || score.state!=="in") return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Pregame or waiting for live game data.",live:null,lines:null};
+ if(!score || score.state!=="in") return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Pregame or waiting for live game data.",live:null,lines:null};
  const liveGames=window.latestLiveData?.games||[];
  const away=cleanTeamName(event.awayTeam),home=cleanTeamName(event.homeTeam);
  const live=liveGames.find(game=>{
   const ga=cleanTeamName(game.away?.name),gh=cleanTeamName(game.home?.name);
   return (ga===away||ga.includes(away)||away.includes(ga))&&(gh===home||gh.includes(home)||home.includes(gh));
  });
- if(!live?.projection) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for GFI projection.",live,lines:null};
+ if(!live?.projection) return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Waiting for GFI projection.",live,lines:null};
  const lines=liveTotalMarket(live);
  const p=live.projection;
- if(!lines || p.total===null || p.total===undefined || !Number.isFinite(Number(p.total))) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for a matched FanDuel/DraftKings live total.",live,lines};
+ if(!lines || p.total===null || p.total===undefined || !Number.isFinite(Number(p.total))) return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Waiting for a matched FanDuel/DraftKings live total.",live,lines};
  const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
  const edge=Number(p.total)-marketLine;
  const current=Number(p.currentTotal ?? (Number(live.home?.score||0)+Number(live.away?.score||0)));
  const elapsed=Number(p.elapsedMinutes), remaining=Number(p.remainingMinutes);
  const scoringPace=Number.isFinite(elapsed)&&elapsed>0?current/elapsed:null;
  const neededPace=Number.isFinite(remaining)&&remaining>0?(marketLine-current)/remaining:null;
- if(edge>=5) return {key:"GREEN",label:"GREEN · OVER",color:"#22c55e",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
- if(edge<=-5) return {key:"RED",label:"RED · UNDER",color:"#ef4444",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
- return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"GFI projection is within 5 points of the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ if(edge>=5) return {key:"GREEN",label:"OVER",color:"#86d6b5",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ if(edge<=-5) return {key:"RED",label:"UNDER",color:"#e9a0a8",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"GFI projection is within 5 points of the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
 }
 let oddsSignalFilter="ALL";
 let oddsSignalCards=[];
@@ -250,7 +250,7 @@ function renderOdds(data){
   const score=findScoreGame(event);
   const isLive=score?.state==="in";
   const signal=oddsBoardSignal(event,score);
-  const signalBlock='<div style="margin:9px 0;padding:11px;border-radius:9px;border:1px solid '+signal.color+';background:'+signal.color+'18"><div style="font-weight:900;color:'+signal.color+';font-size:14px">'+signal.label+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+esc(signal.reason)+'</div></div>';
+  const signalBlock='<div style="margin:9px 0;padding:11px;border-radius:9px;border:1px solid '+signal.color+'66;background:'+signal.color+'18"><div style="font-weight:900;color:'+signal.color+';font-size:14px;letter-spacing:.7px">'+signal.label+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+esc(signal.reason)+'</div></div>';
   const liveMetricsBlock=signal.live&&signal.projection!==undefined
    ? '<div class="result-row"><span class="muted">Live full-game totals</span><strong>'+signal.lines.map(line=>esc(line.book)+' '+line.point).join(' · ')+'</strong></div>'+
      '<div class="calc-grid">'+
@@ -341,13 +341,13 @@ function renderLiveGames(data) {
   const neededPace = lines && Number.isFinite(remaining) && remaining>0 ? (consensusLine-current)/remaining : null;
   const edge = lines && p.total!==null && p.total!==undefined && Number.isFinite(Number(p.total)) ? Number(p.total)-consensusLine : null;
   const signal = edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
-  const signalColor = signal==='OVER' ? '#22c55e' : signal==='UNDER' ? '#ef4444' : '#eab308';
-  const signalLabel = signal==='OVER' ? 'GREEN · OVER' : signal==='UNDER' ? 'RED · UNDER' : 'YELLOW · WATCH';
+  const signalColor = signal==='OVER' ? '#86d6b5' : signal==='UNDER' ? '#e9a0a8' : '#f4d58d';
+  const signalLabel = signal==='OVER' ? 'OVER' : signal==='UNDER' ? 'UNDER' : 'WATCH';
   const marketBlock = lines
    ? '<div class="result-row"><span class="muted">Live full-game totals</span><strong>'+lines.map(line=>esc(line.book)+' '+line.point).join(' · ')+'</strong></div>'
    : '<div class="result-row"><span class="muted">Live full-game total</span><strong>Waiting for FanDuel / DraftKings line</strong></div>';
   const paceBlock = '<div class="calc-grid">'+metric('SCORING PACE',scoringPace===null?'—':scoringPace.toFixed(2)+' pts/min')+metric('PACE NEEDED',neededPace===null?'—':neededPace.toFixed(2)+' pts/min')+metric('MODEL vs LINE',edge===null?'—':(edge>0?'+':'')+edge.toFixed(1)+' pts')+'</div>';
-  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+';background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
+  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+'66;background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px;letter-spacing:.7px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
   const quality = [q.boxScoreAvailable ? 'Box score ✓' : 'Box score pending', q.playByPlayAvailable ? 'Play-by-play ✓' : 'Play-by-play pending', q.situationAvailable ? 'Fouls/timeouts ✓' : 'Fouls/timeouts unavailable'].join(' · ');
   const html = '<div class="game-card"><div class="game-top"><strong>' + esc(g.matchup) + '</strong><span class="status">' + esc(g.status) + '</span></div>' +
    '<div class="teams"><div class="team">' + esc(g.away.name) + '</div><div class="score">' + g.away.score + '</div><div class="team">' + esc(g.home.name) + '</div><div class="score">' + g.home.score + '</div></div>' +
