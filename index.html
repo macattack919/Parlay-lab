@@ -215,6 +215,11 @@ function oddsBoardSignal(event, score){
  const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
  const edge=Number(p.total)-marketLine;
  const current=Number(p.currentTotal ?? (Number(live.home?.score||0)+Number(live.away?.score||0)));
+ const clearedLines=lines.filter(line=>Number.isFinite(Number(line.point)) && current>Number(line.point));
+ if(clearedLines.length){
+  const books=clearedLines.map(line=>line.book+' '+line.point).join(', ');
+  return {key:"YELLOW",label:"⚠ TOTAL CLEARED",color:"#f4b183",reason:"Current score ("+current+") is already above the displayed full-game total at "+books+". Treat this as a possible stale line or market discrepancy—not a bet signal. Confirm the exact market and that the sportsbook accepts the wager; a bet on an outcome already determined may be void.",live,lines,marketLine,edge,current,projection:Number(p.total),clearedLines};
+ }
  const elapsed=Number(p.elapsedMinutes), remaining=Number(p.remainingMinutes);
  const scoringPace=Number.isFinite(elapsed)&&elapsed>0?current/elapsed:null;
  const neededPace=Number.isFinite(remaining)&&remaining>0?(marketLine-current)/remaining:null;
@@ -343,14 +348,17 @@ function renderLiveGames(data) {
   const consensusLine = lines?.reduce((sum,line)=>sum+line.point,0)/(lines?.length||1);
   const neededPace = lines && Number.isFinite(remaining) && remaining>0 ? (consensusLine-current)/remaining : null;
   const edge = lines && p.total!==null && p.total!==undefined && Number.isFinite(Number(p.total)) ? Number(p.total)-consensusLine : null;
-  const signal = edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
-  const signalColor = signal==='OVER' ? '#86d6b5' : signal==='UNDER' ? '#e9a0a8' : '#f4d58d';
-  const signalLabel = linesLocked ? '🔒 LINES CLOSED' : signal;
+  const clearedLines = lines ? lines.filter(line=>Number.isFinite(Number(line.point)) && current>Number(line.point)) : [];
+  const totalCleared = clearedLines.length>0;
+  const signal = totalCleared ? 'WATCH' : edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
+  const signalColor = totalCleared ? '#f4b183' : signal==='OVER' ? '#86d6b5' : signal==='UNDER' ? '#e9a0a8' : '#f4d58d';
+  const signalLabel = totalCleared ? '⚠ TOTAL CLEARED' : linesLocked ? '🔒 LINES CLOSED' : signal;
   const marketBlock = lines
    ? '<div class="result-row"><span class="muted">Live full-game totals</span><strong>'+lines.map(line=>esc(line.book)+' '+line.point).join(' · ')+'</strong></div>'
    : '<div class="result-row"><span class="muted">Live full-game total</span><strong>Waiting for FanDuel / DraftKings line</strong></div>';
   const paceBlock = '<div class="calc-grid">'+metric('SCORING PACE',scoringPace===null?'—':scoringPace.toFixed(2)+' pts/min')+metric('PACE NEEDED',neededPace===null?'—':neededPace.toFixed(2)+' pts/min')+metric('MODEL vs LINE',edge===null?'—':(edge>0?'+':'')+edge.toFixed(1)+' pts')+'</div>';
-  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+'66;background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px;letter-spacing:.7px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(linesLocked?'No FanDuel/DraftKings live total is currently available with 3 minutes or less remaining. The market may be closed.':edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
+  const clearedBookText = clearedLines.map(line=>esc(line.book)+' '+line.point).join(', ');
+  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+'66;background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px;letter-spacing:.7px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(totalCleared?'Current combined score ('+current+') is above the displayed full-game total at '+clearedBookText+'. This may be a stale feed or market discrepancy—not a guaranteed win. Verify the exact full-game market, refresh the line, and confirm the wager is accepted. A sportsbook may void a bet if the outcome was already determined.':linesLocked?'No FanDuel/DraftKings live total is currently available with 3 minutes or less remaining. The market may be closed.':edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
   const quality = [q.boxScoreAvailable ? 'Box score ✓' : 'Box score pending', q.playByPlayAvailable ? 'Play-by-play ✓' : 'Play-by-play pending', q.situationAvailable ? 'Fouls/timeouts ✓' : 'Fouls/timeouts unavailable'].join(' · ');
   const html = '<div class="game-card"><div class="game-top"><strong>' + esc(g.matchup) + '</strong><span class="status">' + esc(g.status) + '</span></div>' +
    '<div class="teams"><div class="team">' + esc(g.away.name) + '</div><div class="score">' + g.away.score + '</div><div class="team">' + esc(g.home.name) + '</div><div class="score">' + g.home.score + '</div></div>' +
