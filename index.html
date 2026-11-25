@@ -86,11 +86,11 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
    <div class="sub" id="liveStatus">Connecting to ESPN live game data…</div>
    <div class="signal-filters" id="liveSignalFilters" aria-label="Filter games by signal">
     <button class="signal-filter active" type="button" data-filter="ALL">ALL <strong id="countAll">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="GREEN">🟢 GREEN <strong id="countGreen">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="YELLOW">🟡 YELLOW <strong id="countYellow">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="RED">🔴 RED <strong id="countRed">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="GREEN">OVER <strong id="countGreen">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="YELLOW">WATCH <strong id="countYellow">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="RED">UNDER <strong id="countRed">0</strong></button>
    </div>
-   <div class="notice">Green = model lean over · Red = model lean under · Yellow = watch or no matched live line.</div>
+   <div class="notice">OVER = model lean over · UNDER = model lean under · WATCH = no clear edge or no matched live line.</div>
    <div class="games" id="liveGamesList" style="margin-top:12px"><div class="empty">Loading live game intelligence…</div></div>
   </section>
  </section>
@@ -110,9 +110,9 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
    <div class="sub" id="oddsScoreStatus" style="margin-top:6px">Live scores from ESPN · Combined score refreshes every 30 seconds.</div>
    <div class="signal-filters" id="oddsSignalFilters" aria-label="Filter odds board by signal">
     <button class="signal-filter active" type="button" data-filter="ALL">ALL <strong id="oddsCountAll">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="GREEN">🟢 GREEN <strong id="oddsCountGreen">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="YELLOW">🟡 YELLOW <strong id="oddsCountYellow">0</strong></button>
-    <button class="signal-filter" type="button" data-filter="RED">🔴 RED <strong id="oddsCountRed">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="GREEN">OVER <strong id="oddsCountGreen">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="YELLOW">WATCH <strong id="oddsCountYellow">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="RED">UNDER <strong id="oddsCountRed">0</strong></button>
    </div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
   </section>
