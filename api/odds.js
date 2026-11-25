@@ -19,7 +19,8 @@ function legFrom(event, book, market, outcome) {
     bookKey: book.key,
     bookTitle: book.title || book.key,
     bookLink: book.link || null,
-    lineType: market.line_type || "main"
+    lineType: market.line_type || "main",
+    live: Boolean(event.live)
   };
 }
 function buildOpportunities(events) {
@@ -44,6 +45,8 @@ function buildOpportunities(events) {
 
   const exact = [];
   const near = [];
+  const liveExact = [];
+  const pregameExact = [];
   let examined = 0;
   for (const [bookKey, bucket] of byBook) {
     const under = bucket.under;
@@ -65,8 +68,10 @@ function buildOpportunities(events) {
             boostedDecimal: Number(boostedDecimal.toFixed(4)),
             boostPercent: 20
           };
-          if (boostedAmerican >= 100 && boostedAmerican <= 150) exact.push(item);
-          else near.push({ ...item, distance: Math.min(Math.abs(boostedAmerican - 100), Math.abs(boostedAmerican - 150)) });
+          if (boostedAmerican >= 100 && boostedAmerican <= 150) {
+            exact.push(item);
+            (legs.some(leg => leg.live) ? liveExact : pregameExact).push(item);
+          } else near.push({ ...item, distance: Math.min(Math.abs(boostedAmerican - 100), Math.abs(boostedAmerican - 150)) });
         }
         if (examined > 50000) break;
       }
@@ -77,7 +82,7 @@ function buildOpportunities(events) {
   const sort = (a, b) => Math.abs(a.boostedAmerican - 125) - Math.abs(b.boostedAmerican - 125);
   exact.sort(sort);
   near.sort(sort);
-  return { opportunities: exact.slice(0, 30), nearMisses: near.slice(0, 12), combinationsExamined: examined };
+  return { opportunities: exact.slice(0, 30), liveOpportunities: liveExact.slice(0, 30), pregameOpportunities: pregameExact.slice(0, 30), nearMisses: near.slice(0, 12), combinationsExamined: examined };
 }
 
 export default async function handler(req, res) {
