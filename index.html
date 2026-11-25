@@ -179,7 +179,7 @@ function renderGames(){
 }
 async function loadGames(){
  $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;$('floatingRefresh').disabled=true;
- try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];renderGames();$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();}
+ try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();}
  catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
  finally{$('refresh').disabled=false;$('floatingRefresh').disabled=false}
 }
@@ -399,6 +399,38 @@ const SIGNAL_STORAGE_KEY = "parlayLab.liveSignalHistory.v1";
 let signalHistory = [];
 try { signalHistory = JSON.parse(localStorage.getItem(SIGNAL_STORAGE_KEY) || "[]"); } catch { signalHistory = []; }
 function saveSignalHistory(){ try { localStorage.setItem(SIGNAL_STORAGE_KEY, JSON.stringify(signalHistory.slice(-500))); } catch {} }
+
+function gradeSignalHistory(scoreboardGames){
+ let changed=false;
+ for(const item of signalHistory){
+  if(item.result!=="OPEN")continue;
+  const finalGame=(scoreboardGames||[]).find(game=>String(game.id)===String(item.gameId)&&game.state==="post");
+  if(!finalGame)continue;
+  const home=Number(finalGame.home?.score),away=Number(finalGame.away?.score);
+  if(!Number.isFinite(home)||!Number.isFinite(away))continue;
+  const finalTotal=home+away;
+  item.finalTotal=finalTotal;
+  item.gradedAt=new Date().toISOString();
+  item.result=finalTotal===Number(item.line)?"PUSH":
+   (item.pick==="UNDER"?finalTotal<Number(item.line):finalTotal>Number(item.line))?"WIN":"LOSS";
+  changed=true;
+ }
+ if(changed){saveSignalHistory();renderSignalHistory();}
+}
+function renderSignalPerformance(){
+ const specs=[["pace_5_5","paceSignalCount"],["time_8_12","timeSignalCount"],["triple_dipper","tripleSignalCount"]];
+ for(const [id,countId] of specs){
+  const records=signalHistory.filter(item=>item.id===id&&item.result!=="OPEN"&&item.result!=="PUSH");
+  const wins=records.filter(item=>item.result==="WIN").length;
+  const losses=records.filter(item=>item.result==="LOSS").length;
+  const total=wins+losses;
+  const count=$(countId);
+  if(count)count.textContent=signalHistory.filter(item=>item.id===id).length;
+  const metric=count?.closest(".metric");
+  if(metric){const small=metric.querySelector("small");if(small)small.textContent=total?wins+"–"+losses+" · "+(100*wins/total).toFixed(1)+"% graded":"Awaiting graded results";}
+ }
+}
+
 function renderSignalHistory(){
  const target=$("signalHistory"), count=$("signalHistoryCount");
  count.textContent=signalHistory.length+" logged";
@@ -433,6 +465,7 @@ function evaluateSignalBoard(data){
  $("paceSignalCount").textContent=signalHistory.filter(item=>item.id==="pace_5_5").length;
  $("timeSignalCount").textContent=signalHistory.filter(item=>item.id==="time_8_12").length;
  $("tripleSignalCount").textContent=signalHistory.filter(item=>item.id==="triple_dipper").length;
+ renderSignalPerformance();
  const cards=all.map(signal=>{
   const color=signal.pick==="UNDER"?"var(--red)":"var(--green)";
   const overlap=all.filter(other=>other.gameId===signal.gameId).length;
