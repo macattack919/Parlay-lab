@@ -108,6 +108,12 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
    <div class="panel-head"><div><div class="section-kicker">PROPLINE · LIVE ODDS</div><h2>Team Totals & Game Totals</h2></div><button class="boost" id="refreshOddsBoard" type="button">↻ Refresh lines</button></div>
    <div class="sub" id="oddsStatus">Available markets returned by PropLine, grouped by game and sportsbook.</div>
    <div class="sub" id="oddsScoreStatus" style="margin-top:6px">Live scores from ESPN · Combined score refreshes every 30 seconds.</div>
+   <div class="signal-filters" id="oddsSignalFilters" aria-label="Filter odds board by signal">
+    <button class="signal-filter active" type="button" data-filter="ALL">ALL <strong id="oddsCountAll">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="GREEN">🟢 GREEN <strong id="oddsCountGreen">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="YELLOW">🟡 YELLOW <strong id="oddsCountYellow">0</strong></button>
+    <button class="signal-filter" type="button" data-filter="RED">🔴 RED <strong id="oddsCountRed">0</strong></button>
+   </div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
   </section>
  </section>
@@ -184,6 +190,35 @@ function findScoreGame(event){
   return (ga===away||ga.includes(away)||away.includes(ga)) && (gh===home||gh.includes(home)||home.includes(gh));
  });
 }
+function oddsBoardSignal(event, score){
+ if(!score || score.state!=="in") return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Pregame or waiting for live game data."};
+ const liveGames=window.latestLiveData?.games||[];
+ const away=cleanTeamName(event.awayTeam),home=cleanTeamName(event.homeTeam);
+ const live=liveGames.find(game=>{
+  const ga=cleanTeamName(game.away?.name),gh=cleanTeamName(game.home?.name);
+  return (ga===away||ga.includes(away)||away.includes(ga))&&(gh===home||gh.includes(home)||home.includes(gh));
+ });
+ if(!live?.projection) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for GFI projection."};
+ const lines=liveTotalMarket(live);
+ const projection=live.projection.total;
+ if(!lines || projection===null || projection===undefined || !Number.isFinite(Number(projection))) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for a matched FanDuel/DraftKings live total."};
+ const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
+ const edge=Number(projection)-marketLine;
+ if(edge>=5) return {key:"GREEN",label:"GREEN · OVER",color:"#22c55e",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total."};
+ if(edge<=-5) return {key:"RED",label:"RED · UNDER",color:"#ef4444",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total."};
+ return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"GFI projection is within 5 points of the live market total."};
+}
+let oddsSignalFilter="ALL";
+let oddsSignalCards=[];
+document.querySelectorAll("#oddsSignalFilters [data-filter]").forEach(button=>button.addEventListener("click",()=>{
+ oddsSignalFilter=button.dataset.filter;
+ document.querySelectorAll("#oddsSignalFilters [data-filter]").forEach(item=>item.classList.toggle("active",item===button));
+ renderFilteredOdds();
+}));
+function renderFilteredOdds(){
+ const shown=oddsSignalFilter==="ALL"?oddsSignalCards:oddsSignalCards.filter(card=>card.signal===oddsSignalFilter);
+ $("oddsGamesList").innerHTML=shown.length?shown.map(card=>card.html).join(""):'<div class="empty">No games in this signal category right now.</div>';
+}
 function renderOdds(data){
  const events=data.events||[];
  $('oddsGames').textContent=events.length;
@@ -192,7 +227,7 @@ function renderOdds(data){
  $('quotaSummary').textContent=data.dailyRemaining?data.dailyRemaining+' left today':'Available';
  renderOpportunities(data);
  if(!events.length){$('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';return}
- $('oddsGamesList').innerHTML=events.map(event=>{
+ const rendered=events.map(event=>{
   const rows=[];
   event.bookmakers.forEach(book=>book.markets.forEach(market=>{
    const label=market.team?market.team+" team total":"Full-game total";
@@ -202,15 +237,24 @@ function renderOdds(data){
   }));
   const score=findScoreGame(event);
   const isLive=score?.state==="in";
+  const signal=oddsBoardSignal(event,score);
+  const signalBlock='<div style="margin:9px 0;padding:9px 11px;border-radius:8px;border:1px solid '+signal.color+';background:'+signal.color+'18;display:flex;justify-content:space-between;align-items:center;gap:8px"><strong style="color:'+signal.color+'">'+signal.label+'</strong><span class="sub" style="color:var(--text);text-align:right">'+esc(signal.reason)+'</span></div>';
   const combined=isLive?Number(score.home.score||0)+Number(score.away.score||0):null;
   const scoreBlock=score
    ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?formatHalf(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
    : '<div class="sub" style="margin:7px 0">Score not matched to ESPN yet</div>';
-  return '<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
-   scoreBlock+
+  const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
+   signalBlock+scoreBlock+
    rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
   '</div>';
- }).join("");
+  return {signal:signal.key,html};
+ });
+ oddsSignalCards=rendered;
+ $("oddsCountAll").textContent=rendered.length;
+ $("oddsCountGreen").textContent=rendered.filter(card=>card.signal==="GREEN").length;
+ $("oddsCountYellow").textContent=rendered.filter(card=>card.signal==="YELLOW").length;
+ $("oddsCountRed").textContent=rendered.filter(card=>card.signal==="RED").length;
+ renderFilteredOdds();
 }
 async function refreshOddsScores(){
  try{
@@ -312,7 +356,9 @@ async function loadLive() {
   const response = await fetch('/api/live', { cache: 'no-store' });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || ('Request failed ' + response.status));
+  window.latestLiveData=data;
   renderLiveGames(data);
+  if(window.latestOddsData)renderOdds(window.latestOddsData);
  } catch (error) {
   $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
   $('liveGamesList').innerHTML = '<div class="empty">Could not load live game details. ' + esc(error.message) + '</div>';
