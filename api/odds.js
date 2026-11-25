@@ -70,7 +70,8 @@ function buildOpportunities(events) {
           };
           if (boostedAmerican >= 100 && boostedAmerican <= 150) {
             exact.push(item);
-            (legs.some(leg => leg.live) ? liveExact : pregameExact).push(item);
+            if (legs.every(leg => leg.live)) liveExact.push(item);
+            else if (legs.every(leg => !leg.live)) pregameExact.push(item);
           } else near.push({ ...item, distance: Math.min(Math.abs(boostedAmerican - 100), Math.abs(boostedAmerican - 150)) });
         }
         if (examined > 50000) break;
