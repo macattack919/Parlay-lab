@@ -82,11 +82,10 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
  </section>
  <section class="page" id="page-live">
   <section class="panel">
-   <div class="panel-head"><div><div class="section-kicker">LIVE GAME INTELLIGENCE</div><h2>Live Three-Leg Opportunities</h2></div><button class="boost" id="refreshOdds" type="button">↻ Scan live odds</button></div>
-   <div class="sub" id="liveStatus">Waiting for live-game odds…</div>
-   <div class="sub" style="margin:12px 0">Live markets will be ranked using score, pace, possessions remaining, projections, fouls and clock context as those data feeds are connected.</div>
-   <div class="games" id="liveOpportunityList" style="margin-top:10px"><div class="empty">No live combinations returned yet.</div></div>
-   <div class="notice">Live rankings require reliable in-game state. Until the GFI-style intelligence layer is connected, these are odds-only screens.</div>
+   <div class="panel-head"><div><div class="section-kicker">LIVE GAME INTELLIGENCE · GFI MODEL</div><h2>NCAA Live Projections</h2></div><button class="boost" id="refreshLive" type="button">↻ Refresh live games</button></div>
+   <div class="sub" id="liveStatus">Connecting to ESPN live game data…</div>
+   <div class="notice">Projection engine uses GFI's possessions-and-efficiency model. Market edges and betting signals will follow live PropLine line matching and historical validation.</div>
+   <div class="games" id="liveGamesList" style="margin-top:12px"><div class="empty">Loading live game intelligence…</div></div>
   </section>
  </section>
  <section class="page" id="page-pregame">
@@ -101,7 +100,7 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
  <section class="page" id="page-odds">
   <section class="panel" id="oddsBoard">
    <div class="panel-head"><div><div class="section-kicker">PROPLINE · LIVE ODDS</div><h2>Team Totals & Game Totals</h2></div><button class="boost" id="refreshOddsBoard" type="button">↻ Refresh lines</button></div>
-   <div class="sub">Available markets returned by PropLine, grouped by game and sportsbook.</div>
+   <div class="sub" id="oddsStatus">Available markets returned by PropLine, grouped by game and sportsbook.</div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
   </section>
  </section>
@@ -189,8 +188,45 @@ function renderOdds(data){
   '</div>';
  }).join("");
 }
+
+function renderLiveGames(data) {
+ const list = $('liveGamesList'), games = data.games || [];
+ $('liveStatus').textContent = games.length + ' live NCAA games · ' + (data.successfulCount || 0) + ' with detailed data · Updated ' + new Date(data.updated || Date.now()).toLocaleTimeString();
+ if (!games.length) { list.innerHTML = '<div class="empty">No NCAA games are currently live. The engine will populate this page when games enter progress.</div>'; return; }
+ list.innerHTML = games.map(g => {
+  if (g.error) return '<div class="game-card"><strong>' + esc(g.matchup || g.id) + '</strong><div class="notice">' + esc(g.error) + '</div></div>';
+  const p = g.projection || {}, q = g.dataQuality || {}, s = g.scoreboardStatus || {}, c = g.context || {}, late = g.lateGameOverPotential || {};
+  const hs = s.home || {}, as = s.away || {}, pos = c.possession || {};
+  const metric = (label, value) => '<div class="calc-item"><small>' + label + '</small><strong>' + value + '</strong></div>';
+  const quality = [q.boxScoreAvailable ? 'Box score ✓' : 'Box score pending', q.playByPlayAvailable ? 'Play-by-play ✓' : 'Play-by-play pending', q.situationAvailable ? 'Fouls/timeouts ✓' : 'Fouls/timeouts unavailable'].join(' · ');
+  return '<div class="game-card"><div class="game-top"><strong>' + esc(g.matchup) + '</strong><span class="status">' + esc(g.status) + '</span></div>' +
+   '<div class="teams"><div class="team">' + esc(g.away.name) + '</div><div class="score">' + g.away.score + '</div><div class="team">' + esc(g.home.name) + '</div><div class="score">' + g.home.score + '</div></div>' +
+   '<div class="sub" style="margin-top:8px">Period ' + g.period + ' · ' + esc(g.clock) + ' · ' + esc(p.sample || 'Projection pending') + '</div>' +
+   '<div class="calc-grid">' + metric('PROJECTED FINAL', p.total ?? '—') + metric('REMAINING POSSESSIONS', p.projectedRemainingPossessions ?? '—') + metric('POSSESSIONS / MIN', p.possessionsPerMinute ?? '—') + metric('AWAY PPP', p.awayPPP ?? '—') + metric('HOME PPP', p.homePPP ?? '—') + metric('CURRENT TOTAL', p.currentTotal ?? (g.home.score + g.away.score)) + '</div>' +
+   '<div class="result-row"><span class="muted">Possession estimate</span><strong>' + esc(pos.source || 'Unavailable') + ' · ' + esc(pos.confidence || 'unknown') + '</strong></div>' +
+   '<div class="result-row"><span class="muted">Away fouls / bonus / TO</span><strong>' + esc(as.teamFouls ?? '—') + ' / ' + esc(as.bonus || '—') + ' / ' + esc(as.timeouts?.remaining ?? '—') + '</strong></div>' +
+   '<div class="result-row"><span class="muted">Home fouls / bonus / TO</span><strong>' + esc(hs.teamFouls ?? '—') + ' / ' + esc(hs.bonus || '—') + ' / ' + esc(hs.timeouts?.remaining ?? '—') + '</strong></div>' +
+   (late.qualified ? '<div class="notice">' + esc(late.label) + ': ' + esc(late.reason) + '</div>' : '') +
+   '<div class="sub" style="margin-top:8px">' + esc(quality) + '</div>' + (p.note ? '<div class="sub" style="margin-top:5px">' + esc(p.note) + '</div>' : '') + '</div>';
+ }).join('');
+}
+async function loadLive() {
+ $('liveStatus').textContent = 'Refreshing ESPN game state and GFI projections…';
+ $('refreshLive').disabled = true;
+ try {
+  const response = await fetch('/api/live', { cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || ('Request failed ' + response.status));
+  renderLiveGames(data);
+ } catch (error) {
+  $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
+  $('liveGamesList').innerHTML = '<div class="empty">Could not load live game details. ' + esc(error.message) + '</div>';
+ } finally { $('refreshLive').disabled = false; }
+}
+$('refreshLive').addEventListener('click', loadLive);
+
 async function loadOdds(){
- $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOdds').disabled=true;
+ $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;
  try{
   const response=await fetch('/api/odds',{cache:'no-store'});
   const data=await response.json();
@@ -201,10 +237,10 @@ async function loadOdds(){
  }catch(error){
   $('oddsStatus').textContent="Odds feed unavailable: "+error.message;
   $('oddsGamesList').innerHTML='<div class="empty">Check that PROPLINE_API_KEY is set in Vercel, then redeploy. '+esc(error.message)+'</div>';
- }finally{$('refreshOdds').disabled=false}
+ }finally{$('refreshOddsBoard').disabled=false}
 }
-$('refreshOdds').addEventListener('click',loadOdds);
+$('refreshOddsBoard').addEventListener('click',loadOdds);
 $('today').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-loadGames();loadOdds();
+loadGames();loadOdds();loadLive();
 </script>
 </body></html>
