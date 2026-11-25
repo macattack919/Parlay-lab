@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "test": "node --test"
   },
   "devDependencies": {
     "vercel": "^39.2.2"
-  }
+  },
+  "type": "module"
 }
