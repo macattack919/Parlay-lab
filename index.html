@@ -217,6 +217,28 @@ async function refreshOddsScores(){
  }
 }
 
+function liveTotalMarket(game) {
+ const clean = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const away = clean(game.away?.name), home = clean(game.home?.name);
+ const event = (window.latestOddsData?.events || []).find(item => {
+  const ea=clean(item.awayTeam), eh=clean(item.homeTeam);
+  return (ea===away || ea.includes(away) || away.includes(ea)) &&
+         (eh===home || eh.includes(home) || home.includes(eh));
+ });
+ if (!event) return null;
+ const lines=[];
+ (event.bookmakers||[]).forEach(book=>{
+  if (!/fanduel|draftkings/i.test(book.key+' '+book.title)) return;
+  (book.markets||[]).forEach(market=>{
+   if (market.team || (market.period && market.period!=='full') || market.lineType==='alternate') return;
+   const over=(market.outcomes||[]).find(o=>String(o.name).toLowerCase()==='over');
+   const under=(market.outcomes||[]).find(o=>String(o.name).toLowerCase()==='under');
+   const point=over?.point??under?.point;
+   if (point!==null && point!==undefined && Number.isFinite(Number(point))) lines.push({book:book.title||book.key,point:Number(point)});
+  });
+ });
+ return lines.length ? lines : null;
+}
 function renderLiveGames(data) {
  const list = $('liveGamesList'), games = data.games || [];
  $('liveStatus').textContent = games.length + ' live NCAA games · ' + (data.successfulCount || 0) + ' with detailed data · Updated ' + new Date(data.updated || Date.now()).toLocaleTimeString();
@@ -226,11 +248,27 @@ function renderLiveGames(data) {
   const p = g.projection || {}, q = g.dataQuality || {}, s = g.scoreboardStatus || {}, c = g.context || {}, late = g.lateGameOverPotential || {};
   const hs = s.home || {}, as = s.away || {}, pos = c.possession || {};
   const metric = (label, value) => '<div class="calc-item"><small>' + label + '</small><strong>' + value + '</strong></div>';
+  const current = Number(p.currentTotal ?? (g.home.score + g.away.score));
+  const elapsed = Number(p.elapsedMinutes), remaining = Number(p.remainingMinutes);
+  const scoringPace = Number.isFinite(elapsed) && elapsed>0 ? current/elapsed : null;
+  const lines = liveTotalMarket(g);
+  const consensusLine = lines?.reduce((sum,line)=>sum+line.point,0)/(lines?.length||1);
+  const neededPace = lines && Number.isFinite(remaining) && remaining>0 ? (consensusLine-current)/remaining : null;
+  const edge = lines && Number.isFinite(Number(p.total)) ? Number(p.total)-consensusLine : null;
+  const signal = edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
+  const signalColor = signal==='OVER' ? '#22c55e' : signal==='UNDER' ? '#ef4444' : '#eab308';
+  const signalLabel = signal==='OVER' ? 'GREEN · OVER' : signal==='UNDER' ? 'RED · UNDER' : 'YELLOW · WATCH';
+  const marketBlock = lines
+   ? '<div class="result-row"><span class="muted">Live full-game totals</span><strong>'+lines.map(line=>esc(line.book)+' '+line.point).join(' · ')+'</strong></div>'
+   : '<div class="result-row"><span class="muted">Live full-game total</span><strong>Waiting for FanDuel / DraftKings line</strong></div>';
+  const paceBlock = '<div class="calc-grid">'+metric('SCORING PACE',scoringPace===null?'—':scoringPace.toFixed(2)+' pts/min')+metric('PACE NEEDED',neededPace===null?'—':neededPace.toFixed(2)+' pts/min')+metric('MODEL vs LINE',edge===null?'—':(edge>0?'+':'')+edge.toFixed(1)+' pts')+'</div>';
+  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+';background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
   const quality = [q.boxScoreAvailable ? 'Box score ✓' : 'Box score pending', q.playByPlayAvailable ? 'Play-by-play ✓' : 'Play-by-play pending', q.situationAvailable ? 'Fouls/timeouts ✓' : 'Fouls/timeouts unavailable'].join(' · ');
   return '<div class="game-card"><div class="game-top"><strong>' + esc(g.matchup) + '</strong><span class="status">' + esc(g.status) + '</span></div>' +
    '<div class="teams"><div class="team">' + esc(g.away.name) + '</div><div class="score">' + g.away.score + '</div><div class="team">' + esc(g.home.name) + '</div><div class="score">' + g.home.score + '</div></div>' +
-   '<div class="sub" style="margin-top:8px">Period ' + g.period + ' · ' + esc(g.clock) + ' · ' + esc(p.sample || 'Projection pending') + '</div>' +
-   '<div class="calc-grid">' + metric('PROJECTED FINAL', p.total ?? '—') + metric('REMAINING POSSESSIONS', p.projectedRemainingPossessions ?? '—') + metric('POSSESSIONS / MIN', p.possessionsPerMinute ?? '—') + metric('AWAY PPP', p.awayPPP ?? '—') + metric('HOME PPP', p.homePPP ?? '—') + metric('AWAY PROJECTED', p.awayProjectedPoints ?? '—') + metric('HOME PROJECTED', p.homeProjectedPoints ?? '—') + metric('CURRENT TOTAL', p.currentTotal ?? (g.home.score + g.away.score)) + '</div>' +
+   '<div class="sub" style="margin-top:8px">' + formatHalf(g.period) + ' · ' + esc(g.clock) + ' · ' + esc(p.sample || 'Projection pending') + '</div>' +
+   '<div class="calc-grid">' + metric('PROJECTED FINAL', p.total ?? '—') + metric('REMAINING POSSESSIONS', p.projectedRemainingPossessions ?? '—') + metric('POSSESSIONS / MIN', p.possessionsPerMinute ?? '—') + metric('AWAY PPP', p.awayPPP ?? '—') + metric('HOME PPP', p.homePPP ?? '—') + metric('AWAY PROJECTED', p.awayProjectedPoints ?? '—') + metric('HOME PROJECTED', p.homeProjectedPoints ?? '—') + metric('CURRENT TOTAL', current) + '</div>' +
+   marketBlock + paceBlock + signalBlock +
    '<div class="result-row"><span class="muted">Possession estimate</span><strong>' + esc(pos.source || 'Unavailable') + ' · ' + esc(pos.confidence || 'unknown') + '</strong></div>' +
    '<div class="result-row"><span class="muted">Timeout status</span><strong>' + (c.timeoutActive ? 'TIMEOUT IN PROGRESS' : 'Live play / not in timeout') + '</strong></div>' +
    '<div class="result-row"><span class="muted">Away fouls / bonus / TO</span><strong>' + esc(as.teamFouls ?? '—') + ' / ' + esc(as.bonus || '—') + ' / ' + esc(as.timeouts?.remaining ?? '—') + '</strong></div>' +
