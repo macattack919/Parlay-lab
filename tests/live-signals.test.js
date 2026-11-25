@@ -15,19 +15,19 @@ function projection(overrides = {}) {
 
 test("detects the 5.0–5.5 PPM pace window only with a clear model direction", () => {
   const signals = evaluateLiveSignals({
-    game: game(), marketLine: 159, projection: projection(),
+    game: game(), marketLine: 158.5, projection: projection(),
     marketUpdatedAt: new Date(now - 30_000).toISOString(), now
   });
   assert.ok(signals.some(signal => signal.id === "pace_5_5" && signal.pick === "UNDER"));
   assert.ok(!evaluateLiveSignals({
-    game: game(), marketLine: 159, projection: projection({ total: 158 }),
+    game: game(), marketLine: 158.5, projection: projection({ total: 158 }),
     marketUpdatedAt: new Date(now - 30_000).toISOString(), now
   }).some(signal => signal.id === "pace_5_5"));
 });
 
 test("detects the 8–12 minute window and records the direction", () => {
   const signals = evaluateLiveSignals({
-    game: game(), marketLine: 159, projection: projection(),
+    game: game(), marketLine: 158.5, projection: projection(),
     marketUpdatedAt: new Date(now - 30_000).toISOString(), now
   });
   assert.ok(signals.some(signal => signal.id === "time_8_12" && signal.pick === "UNDER"));
