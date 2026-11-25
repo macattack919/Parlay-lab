@@ -127,7 +127,9 @@ export default async function handler(req, res) {
         homeTeamId: home.id, awayTeamId: away.id,
         possessionTeamId: context.possession?.teamId,
         homeOffense: homeBonus ? { label: homeBonus === "DB" ? "DOUBLE BONUS" : "BONUS", tone: "up" } : null,
-        awayOffense: awayBonus ? { label: awayBonus === "DB" ? "DOUBLE BONUS" : "BONUS", tone: "up" } : null
+        awayOffense: awayBonus ? { label: awayBonus === "DB" ? "DOUBLE BONUS" : "BONUS", tone: "up" } : null,
+        homeTimeouts: scoreboardStatus?.home?.timeouts?.remaining,
+        awayTimeouts: scoreboardStatus?.away?.timeouts?.remaining
       });
       return {
         id, matchup: `${away.name} at ${home.name}`,
