@@ -20,12 +20,13 @@ jobs:
           node --check api/live.js
           node --check lib/total-model.js
           node --check lib/live-context.js
+          node --check lib/live-signals.js
       - name: Check dashboard JavaScript syntax
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
           if (!scripts.length) throw new Error('No inline JavaScript found in index.html');
           scripts.forEach((match, index) => fs.writeFileSync(`/tmp/parlay-inline-${index}.mjs`, match[1]));
           NODE
