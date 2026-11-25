@@ -92,6 +92,19 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
    </div>
    <div class="notice">OVER = model lean over · UNDER = model lean under · WATCH = no clear edge or no matched live line.</div>
    <div class="games" id="liveGamesList" style="margin-top:12px"><div class="empty">Loading live game intelligence…</div></div>
+   <section class="panel" id="signalLab" style="margin-top:14px">
+    <div class="panel-head"><div><div class="section-kicker">TTLU PERFORMANCE REPLICATION</div><h2>Live Signal Monitor</h2></div><button class="boost" id="enableSignalAlerts" type="button">Enable alerts</button></div>
+    <div class="sub" id="signalAlertStatus">Signals are evaluated against the latest FanDuel / DraftKings full-game total. Browser alerts work while Parlay Lab is open.</div>
+    <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin:12px 0">
+     <div class="metric"><label>5.0–5.5 PPM</label><strong id="paceSignalCount">0</strong><small>Directional signals</small></div>
+     <div class="metric"><label>8–12 MINUTES</label><strong id="timeSignalCount">0</strong><small>Directional signals</small></div>
+     <div class="metric"><label>TRIPLE DIPPER</label><strong id="tripleSignalCount">0</strong><small>Qualifying signals</small></div>
+    </div>
+    <div class="games" id="signalCards"><div class="empty">Waiting for qualifying live signals.</div></div>
+    <div class="panel-head" style="margin-top:16px"><h2>Signal history</h2><span class="sub" id="signalHistoryCount">0 logged</span></div>
+    <div id="signalHistory" class="sub">No signals logged yet.</div>
+    <div class="notice">The 5.0–5.5 PPM and 8–12 minute performance segments in TTLU include both Over and Under signals. Parlay Lab records the model direction and only sends an actionable alert when its live projection has a 5-point edge. Triple Dipper is evaluated as an Under signal using its published game-state and pace thresholds.</div>
+   </section>
   </section>
  </section>
  <section class="page" id="page-pregame">
@@ -133,7 +146,8 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
  <div class="foot">PARLAY LAB · STOP GUESSING, START STACKING · DATA BEFORE PICKS</div>
 </main>
 <button class="floating-refresh" id="floatingRefresh" type="button" aria-label="Refresh current board" hidden><span class="refresh-symbol">↻</span> <span id="floatingRefreshLabel">Refresh live games</span></button>
-<script>
+<script type="module">
+import { evaluateLiveSignals } from './lib/live-signals.js';
 const $=id=>document.getElementById(id);
 function showPage(view){
  const target=document.getElementById('page-'+view);
@@ -380,6 +394,61 @@ function renderLiveGames(data) {
  $("countRed").textContent=rendered.filter(card=>card.signal==="RED").length;
  renderFilteredLiveGames();
 }
+
+const SIGNAL_STORAGE_KEY = "parlayLab.liveSignalHistory.v1";
+let signalHistory = [];
+try { signalHistory = JSON.parse(localStorage.getItem(SIGNAL_STORAGE_KEY) || "[]"); } catch { signalHistory = []; }
+function saveSignalHistory(){ try { localStorage.setItem(SIGNAL_STORAGE_KEY, JSON.stringify(signalHistory.slice(-500))); } catch {} }
+function renderSignalHistory(){
+ const target=$("signalHistory"), count=$("signalHistoryCount");
+ count.textContent=signalHistory.length+" logged";
+ const recent=signalHistory.slice(-8).reverse();
+ target.innerHTML=recent.length?recent.map(item=>{
+  const result=item.result==="WIN"?"<span style='color:var(--green)'>WIN</span>":item.result==="LOSS"?"<span style='color:var(--red)'>LOSS</span>":item.result==="PUSH"?"PUSH":"OPEN";
+  return '<div class="result-row"><span><strong>'+esc(item.label)+'</strong><br><span class="muted">'+esc(item.matchup)+' · '+esc(item.pick)+' '+item.line+' · '+new Date(item.triggeredAt).toLocaleTimeString()+'</span></span><span>'+result+'</span></div>';
+ }).join(""):'No signals logged yet.';
+}
+function notifySignal(item){
+ if(!window.Notification || Notification.permission!=="granted")return;
+ try{new Notification("PARLAY LAB · "+item.label,{body:item.matchup+" · "+item.pick+" · Live total "+item.line+" · "+item.clock,tag:item.gameId+"-"+item.id,renotify:false});}catch{}
+}
+function evaluateSignalBoard(data){
+ const all=[];
+ (data.games||[]).forEach(game=>{
+  if(game.error)return;
+  const lines=liveTotalMarket(game);
+  if(!lines || !lines.length)return;
+  const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
+  const signals=evaluateLiveSignals({game,marketLine,projection:game.projection,marketUpdatedAt:window.latestOddsData?.updated});
+  signals.forEach(signal=>{
+   all.push({...signal,books:lines.map(line=>line.book+" "+line.point).join(" · ")});
+   const key=signal.gameId+"|"+signal.id;
+   const exists=signalHistory.some(item=>item.key===key);
+   if(!exists){
+    const item={key,id:signal.id,label:signal.label,gameId:signal.gameId,matchup:signal.matchup,pick:signal.pick,line:signal.marketLine,triggeredAt:new Date().toISOString(),clock:signal.clock,score:signal.currentTotal,marketAgeSeconds:signal.marketAgeSeconds,result:"OPEN",finalTotal:null};
+    signalHistory.push(item);saveSignalHistory();notifySignal({...item,clock:signal.clock});
+   }
+  });
+ });
+ $("paceSignalCount").textContent=signalHistory.filter(item=>item.id==="pace_5_5").length;
+ $("timeSignalCount").textContent=signalHistory.filter(item=>item.id==="time_8_12").length;
+ $("tripleSignalCount").textContent=signalHistory.filter(item=>item.id==="triple_dipper").length;
+ const cards=all.map(signal=>{
+  const color=signal.pick==="UNDER"?"var(--red)":"var(--green)";
+  const overlap=all.filter(other=>other.gameId===signal.gameId).length;
+  return '<div class="game-card"><div class="game-top"><strong>'+esc(signal.label)+'</strong><span style="color:'+color+';font-weight:900">'+signal.pick+'</span></div><div style="font-weight:850;margin:7px 0">'+esc(signal.matchup)+'</div><div class="calc-grid"><div class="calc-item"><small>LIVE SCORE</small><strong>'+signal.currentTotal+'</strong></div><div class="calc-item"><small>LIVE TOTAL</small><strong>'+signal.marketLine+'</strong></div><div class="calc-item"><small>TIME LEFT</small><strong>'+signal.remainingMinutes+'</strong></div><div class="calc-item"><small>REQUIRED PPM</small><strong>'+signal.neededPpm+'</strong></div><div class="calc-item"><small>ACTUAL PPM</small><strong>'+signal.actualPpm+'</strong></div><div class="calc-item"><small>PACE GAP</small><strong>'+signal.gapPpm+'</strong></div></div><div class="sub" style="margin-top:7px">'+esc(signal.clock)+' · '+esc(signal.books)+' · '+overlap+' overlapping signal(s)</div></div>';
+ });
+ $("signalCards").innerHTML=cards.length?cards.join(""):'<div class="empty">No qualifying signals right now. The monitor is checking live games and waiting for a fresh sportsbook line.</div>';
+ renderSignalHistory();
+}
+$("enableSignalAlerts").addEventListener("click",async()=>{
+ if(!window.Notification){$("signalAlertStatus").textContent="Browser notifications are not supported in this browser context.";return;}
+ try{
+  const permission=await Notification.requestPermission();
+  $("signalAlertStatus").textContent=permission==="granted"?"Browser alerts enabled while Parlay Lab is open. Background push is not configured yet.": "Notifications were not enabled. You can still see signals in the Live Signal Monitor.";
+ }catch{$("signalAlertStatus").textContent="Could not request notification permission in this browser context.";}
+});
+
 async function loadLive() {
  $('liveStatus').textContent = 'Refreshing ESPN game state and GFI projections…';
  $('refreshLive').disabled = true;
@@ -390,6 +459,7 @@ async function loadLive() {
   if (!response.ok) throw new Error(data.error || ('Request failed ' + response.status));
   window.latestLiveData=data;
   renderLiveGames(data);
+  evaluateSignalBoard(data);
   if(window.latestOddsData)renderOdds(window.latestOddsData);
  } catch (error) {
   $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
@@ -421,6 +491,6 @@ async function loadOdds(){
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 
-loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
+renderSignalHistory();loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
 </script>
 </body></html>
