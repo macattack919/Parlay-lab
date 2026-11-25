@@ -135,10 +135,11 @@ document.querySelectorAll('nav .nav[data-view]').forEach(button=>{
 
 let games=[];
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function formatHalf(period){const n=Number(period);return n===1?'H1':n===2?'H2':n>2?'OT'+(n-2):'Period '+esc(period??'—')}
 function renderGames(){
  $('gameCount').textContent=games.length;
  if(!games.length){$('games').innerHTML='<div class="empty">No NCAA games are listed for this date. Check back during the season or refresh.</div>';return}
- $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?"Period "+g.period+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
+ $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?formatHalf(g.period)+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
 }
 async function loadGames(){
  $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
@@ -195,7 +196,7 @@ function renderOdds(data){
   const isLive=score?.state==="in";
   const combined=isLive?Number(score.home.score||0)+Number(score.away.score||0):null;
   const scoreBlock=score
-   ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?'Period '+esc(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
+   ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?formatHalf(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
    : '<div class="sub" style="margin:7px 0">Score not matched to ESPN yet</div>';
   return '<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
    scoreBlock+
