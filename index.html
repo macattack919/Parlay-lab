@@ -395,6 +395,8 @@ function renderLiveGames(data) {
  renderFilteredLiveGames();
 }
 
+let signalSwRegistration = null;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").then(registration => { signalSwRegistration = registration; }).catch(() => {});
 const SIGNAL_STORAGE_KEY = "parlayLab.liveSignalHistory.v1";
 let signalHistory = [];
 try { signalHistory = JSON.parse(localStorage.getItem(SIGNAL_STORAGE_KEY) || "[]"); } catch { signalHistory = []; }
@@ -442,7 +444,12 @@ function renderSignalHistory(){
 }
 function notifySignal(item){
  if(!window.Notification || Notification.permission!=="granted")return;
- try{new Notification("PARLAY LAB · "+item.label,{body:item.matchup+" · "+item.pick+" · Live total "+item.line+" · "+(item.books||"")+" · "+item.clock,tag:item.gameId+"-"+item.id,renotify:false});}catch{}
+ try{
+  const title="PARLAY LAB · "+item.label;
+  const options={body:item.matchup+" · "+item.pick+" · Live total "+item.line+" · "+(item.books||"")+" · "+item.clock,tag:item.gameId+"-"+item.id,renotify:false};
+  if(signalSwRegistration) signalSwRegistration.showNotification(title,options);
+  else new Notification(title,options);
+ }catch{}
 }
 function evaluateSignalBoard(data){
  const all=[];
@@ -478,7 +485,8 @@ $("enableSignalAlerts").addEventListener("click",async()=>{
  if(!window.Notification){$("signalAlertStatus").textContent="Browser notifications are not supported in this browser context.";return;}
  try{
   const permission=await Notification.requestPermission();
-  $("signalAlertStatus").textContent=permission==="granted"?"Browser alerts enabled while Parlay Lab is open. Background push is not configured yet.": "Notifications were not enabled. You can still see signals in the Live Signal Monitor.";
+  if(permission==="granted" && "serviceWorker" in navigator){signalSwRegistration=await navigator.serviceWorker.ready;}
+  $("signalAlertStatus").textContent=permission==="granted"?"Alerts enabled. Keep Parlay Lab open for live signal checks; server push while the app is closed is not configured yet.": "Notifications were not enabled. You can still see signals in the Live Signal Monitor.";
  }catch{$("signalAlertStatus").textContent="Could not request notification permission in this browser context.";}
 });
 
