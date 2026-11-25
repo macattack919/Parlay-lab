@@ -435,3 +435,36 @@ test("allows a late-game Over signal only when the late-foul setup is qualified 
   assert.equal(noEdge.status, "LATE_FOUL_POTENTIAL");
   assert.equal(noEdge.direction, null);
 });
+
+
+test("starts late-game monitoring at four minutes and escalates only with bonus and leader possession", () => {
+  const base = {
+    league: "ncaa", state: "in", period: 2, regulationPeriods: 2,
+    remainingMinutes: 3.6, homeScore: 57, awayScore: 50,
+    homeTeamId: "home", awayTeamId: "away",
+    homeTimeouts: 2, awayTimeouts: 1
+  };
+  const watch = evaluateLateGameOverPotential(base);
+  assert.equal(watch.status, "WATCH");
+  assert.equal(watch.qualified, true);
+  assert.equal(watch.trailingTimeouts, 1);
+  assert.match(watch.reason, /timeouts remaining/);
+
+  const strong = evaluateLateGameOverPotential({
+    ...base, remainingMinutes: 1.8, homeScore: 60, awayScore: 57,
+    possessionTeamId: "home", homeOffense: { label: "DOUBLE BONUS", tone: "up" }
+  });
+  assert.equal(strong.status, "HIGH");
+  assert.equal(strong.leaderHasPossession, true);
+  assert.equal(strong.leaderDoubleBonus, true);
+});
+
+test("does not escalate a close late game when possession or bonus is missing", () => {
+  const result = evaluateLateGameOverPotential({
+    league: "ncaa", state: "in", period: 2, regulationPeriods: 2,
+    remainingMinutes: 1.5, homeScore: 70, awayScore: 66,
+    homeTeamId: "home", awayTeamId: "away", possessionTeamId: "home"
+  });
+  assert.equal(result.status, "WATCH");
+  assert.equal(result.leaderBonus, false);
+});
