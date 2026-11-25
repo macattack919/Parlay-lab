@@ -153,13 +153,9 @@ function renderOpportunityGroup(targetId,picks,emptyText){
  target.innerHTML=picks.map(renderOpportunity).join("");
 }
 function renderOpportunities(data){
- const live=data.liveOpportunities||[];
  const pre=data.pregameOpportunities||[];
- $('liveStatus').textContent=live.length+' qualifying live combinations · '+(data.combinationsExamined||0).toLocaleString()+' combinations screened';
  $('pregameStatus').textContent=pre.length+' qualifying pregame combinations · 20% boost benchmark';
- renderOpportunityGroup('liveOpportunityList',live,'No live combinations currently meet the odds filters. This can change as games and prices move.');
  renderOpportunityGroup('pregameOpportunityList',pre,'No pregame combinations currently meet the odds filters.');
-
 }
 function renderOpportunity(item){
  return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">20% BOOST → +'+item.boostedAmerican+'</span></div>'+
@@ -224,6 +220,7 @@ async function loadLive() {
  } finally { $('refreshLive').disabled = false; }
 }
 $('refreshLive').addEventListener('click', loadLive);
+setInterval(() => { if (!document.hidden) loadLive(); }, 30000);
 
 async function loadOdds(){
  $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;
