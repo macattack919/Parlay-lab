@@ -101,6 +101,7 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
   <section class="panel" id="oddsBoard">
    <div class="panel-head"><div><div class="section-kicker">PROPLINE · LIVE ODDS</div><h2>Team Totals & Game Totals</h2></div><button class="boost" id="refreshOddsBoard" type="button">↻ Refresh lines</button></div>
    <div class="sub" id="oddsStatus">Available markets returned by PropLine, grouped by game and sportsbook.</div>
+   <div class="sub" id="oddsScoreStatus" style="margin-top:6px">Live scores from ESPN · Combined score refreshes every 30 seconds.</div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
   </section>
  </section>
@@ -163,6 +164,17 @@ function renderOpportunity(item){
  '<div class="result-row"><span class="muted">Combined before boost</span><strong>'+(item.baseAmerican>0?'+':'')+item.baseAmerican+'</strong></div>'+
  '<div class="result-row"><span class="muted">Combined after 20% boost</span><strong style="color:var(--green)">+'+item.boostedAmerican+'</strong></div></div>';
 }
+let oddsScoreGames = [];
+function cleanTeamName(value){
+ return String(value||"").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/(blue devils|tar heels|wildcats|bulldogs|tigers|eagles|bears|hawks|lions|bison|rebels|volunteers|spartans|bruins|cardinals|hurricanes|cougars|rams|gators|seminoles|boilermakers|hoosiers|badgers|terrapins|cavaliers|hokies|orange|jayhawks|cyclones|cowboys|aggies|longhorns|mustangs|raiders|falcons|panthers|wolfpack|demon deacons|fighting irish|red raiders|golden eagles)$/,"");
+}
+function findScoreGame(event){
+ const away=cleanTeamName(event.awayTeam), home=cleanTeamName(event.homeTeam);
+ return oddsScoreGames.find(game=>{
+  const ga=cleanTeamName(game.away?.name), gh=cleanTeamName(game.home?.name);
+  return (ga===away||ga.includes(away)||away.includes(ga)) && (gh===home||gh.includes(home)||home.includes(gh));
+ });
+}
 function renderOdds(data){
  const events=data.events||[];
  $('oddsGames').textContent=events.length;
@@ -179,10 +191,29 @@ function renderOdds(data){
    const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
    rows.push({book:book.title,label,point:over?.point??under?.point,over,under,link:book.link});
   }));
-  return '<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(event.live?'LIVE':'PREGAME')+'</span></div>'+
+  const score=findScoreGame(event);
+  const isLive=score?.state==="in";
+  const combined=isLive?Number(score.home.score||0)+Number(score.away.score||0):null;
+  const scoreBlock=score
+   ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?'Period '+esc(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
+   : '<div class="sub" style="margin:7px 0">Score not matched to ESPN yet</div>';
+  return '<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
+   scoreBlock+
    rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
   '</div>';
  }).join("");
+}
+async function refreshOddsScores(){
+ try{
+  const response=await fetch('/api/scores?league=ncaa',{cache:'no-store'});
+  if(!response.ok)throw new Error('ESPN scores returned '+response.status);
+  const data=await response.json();
+  oddsScoreGames=data.games||[];
+  $('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Updated '+new Date(data.updated||Date.now()).toLocaleTimeString();
+  if(window.latestOddsData)renderOdds(window.latestOddsData);
+ }catch(error){
+  $('oddsScoreStatus').textContent='Live scores unavailable: '+error.message;
+ }
 }
 
 function renderLiveGames(data) {
@@ -229,6 +260,7 @@ async function loadOdds(){
   const response=await fetch('/api/odds',{cache:'no-store'});
   const data=await response.json();
   if(!response.ok)throw new Error(data.error||("Request failed "+response.status));
+  window.latestOddsData=data;
   renderOdds(data);
   const quota=data.dailyRemaining?(" · "+data.dailyRemaining+" API requests remaining today"):"";
   $('oddsStatus').textContent="PropLine · Updated "+new Date(data.updated).toLocaleTimeString()+quota;
@@ -239,6 +271,6 @@ async function loadOdds(){
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 $('today').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-loadGames();loadOdds();loadLive();
+loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);
 </script>
 </body></html>
