@@ -149,10 +149,7 @@ function renderOpportunities(data){
  $('pregameStatus').textContent=pre.length+' qualifying pregame combinations · 20% boost benchmark';
  renderOpportunityGroup('liveOpportunityList',live,'No live combinations currently meet the odds filters. This can change as games and prices move.');
  renderOpportunityGroup('pregameOpportunityList',pre,'No pregame combinations currently meet the odds filters.');
- const picks=data.opportunities||[];
- $('scanSummary').textContent=(data.combinationsExamined||0).toLocaleString()+" combinations screened · target: +100 to +150 after 20% boost. "+(picks.length?"Showing "+picks.length+" matches.":"No exact matches on this scan."); $('scanCount').textContent=picks.length+' matches';
- $('scanSummary').textContent=(data.combinationsExamined||0).toLocaleString()+' combinations screened · '+picks.length+' total matches across both modes.';
- $('scanCount').textContent=picks.length+' total';
+
 }
 function renderOpportunity(item){
  return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">20% BOOST → +'+item.boostedAmerican+'</span></div>'+
