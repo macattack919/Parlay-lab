@@ -199,22 +199,26 @@ function findScoreGame(event){
  });
 }
 function oddsBoardSignal(event, score){
- if(!score || score.state!=="in") return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Pregame or waiting for live game data."};
+ if(!score || score.state!=="in") return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Pregame or waiting for live game data.",live:null,lines:null};
  const liveGames=window.latestLiveData?.games||[];
  const away=cleanTeamName(event.awayTeam),home=cleanTeamName(event.homeTeam);
  const live=liveGames.find(game=>{
   const ga=cleanTeamName(game.away?.name),gh=cleanTeamName(game.home?.name);
   return (ga===away||ga.includes(away)||away.includes(ga))&&(gh===home||gh.includes(home)||home.includes(gh));
  });
- if(!live?.projection) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for GFI projection."};
+ if(!live?.projection) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for GFI projection.",live,lines:null};
  const lines=liveTotalMarket(live);
- const projection=live.projection.total;
- if(!lines || projection===null || projection===undefined || !Number.isFinite(Number(projection))) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for a matched FanDuel/DraftKings live total."};
+ const p=live.projection;
+ if(!lines || p.total===null || p.total===undefined || !Number.isFinite(Number(p.total))) return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"Waiting for a matched FanDuel/DraftKings live total.",live,lines};
  const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
- const edge=Number(projection)-marketLine;
- if(edge>=5) return {key:"GREEN",label:"GREEN · OVER",color:"#22c55e",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total."};
- if(edge<=-5) return {key:"RED",label:"RED · UNDER",color:"#ef4444",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total."};
- return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"GFI projection is within 5 points of the live market total."};
+ const edge=Number(p.total)-marketLine;
+ const current=Number(p.currentTotal ?? (Number(live.home?.score||0)+Number(live.away?.score||0)));
+ const elapsed=Number(p.elapsedMinutes), remaining=Number(p.remainingMinutes);
+ const scoringPace=Number.isFinite(elapsed)&&elapsed>0?current/elapsed:null;
+ const neededPace=Number.isFinite(remaining)&&remaining>0?(marketLine-current)/remaining:null;
+ if(edge>=5) return {key:"GREEN",label:"GREEN · OVER",color:"#22c55e",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ if(edge<=-5) return {key:"RED",label:"RED · UNDER",color:"#ef4444",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ return {key:"YELLOW",label:"YELLOW · WATCH",color:"#eab308",reason:"GFI projection is within 5 points of the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
 }
 let oddsSignalFilter="ALL";
 let oddsSignalCards=[];
@@ -246,13 +250,22 @@ function renderOdds(data){
   const score=findScoreGame(event);
   const isLive=score?.state==="in";
   const signal=oddsBoardSignal(event,score);
-  const signalBlock='<div style="margin:9px 0;padding:9px 11px;border-radius:8px;border:1px solid '+signal.color+';background:'+signal.color+'18;display:flex;justify-content:space-between;align-items:center;gap:8px"><strong style="color:'+signal.color+'">'+signal.label+'</strong><span class="sub" style="color:var(--text);text-align:right">'+esc(signal.reason)+'</span></div>';
+  const signalBlock='<div style="margin:9px 0;padding:11px;border-radius:9px;border:1px solid '+signal.color+';background:'+signal.color+'18"><div style="font-weight:900;color:'+signal.color+';font-size:14px">'+signal.label+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+esc(signal.reason)+'</div></div>';
+  const liveMetricsBlock=signal.live&&signal.projection!==undefined
+   ? '<div class="result-row"><span class="muted">Live full-game totals</span><strong>'+signal.lines.map(line=>esc(line.book)+' '+line.point).join(' · ')+'</strong></div>'+
+     '<div class="calc-grid">'+
+      '<div class="calc-item"><small>PROJECTED FINAL</small><strong>'+signal.projection.toFixed(1)+'</strong></div>'+
+      '<div class="calc-item"><small>SCORING PACE</small><strong>'+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+'</strong></div>'+
+      '<div class="calc-item"><small>PACE NEEDED</small><strong>'+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min')+'</strong></div>'+
+      '<div class="calc-item"><small>MODEL vs LINE</small><strong>'+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts</strong></div>'+
+     '</div>'
+   : '<div class="sub" style="margin:8px 0">Live pace and projection metrics appear when this matchup is live and matched to GFI.</div>';
   const combined=isLive?Number(score.home.score||0)+Number(score.away.score||0):null;
   const scoreBlock=score
    ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?formatHalf(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
    : '<div class="sub" style="margin:7px 0">Score not matched to ESPN yet</div>';
   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
-   signalBlock+scoreBlock+
+   signalBlock+scoreBlock+liveMetricsBlock+
    rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
   '</div>';
   return {signal:signal.key,html};
