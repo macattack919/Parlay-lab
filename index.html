@@ -40,7 +40,8 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
  </div>
  <nav>
   <button class="nav active" data-view="dashboard">Dashboard</button>
-  <button class="nav" data-view="opportunities">Opportunities</button>
+  <button class="nav" data-view="live">Live Game</button>
+  <button class="nav" data-view="pregame">Pregame</button>
   <button class="nav" data-view="odds">Odds Board</button>
   <button class="nav" data-view="slate">Today's Slate</button>
   <button class="nav" data-view="results">Results Lab</button>
@@ -79,14 +80,22 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
    </aside>
   </div>
  </section>
- <section class="page" id="page-opportunities">
+ <section class="page" id="page-live">
   <section class="panel">
-   <div class="panel-head"><div><div class="section-kicker">AUTOMATED SCAN</div><h2>Three-Leg Opportunities</h2></div><button class="boost" id="refreshOdds" type="button">↻ Scan odds</button></div>
-   <div class="sub" id="oddsStatus">Waiting for PropLine connection…</div>
-   <div class="panel-head" style="margin:16px 0 8px"><span class="sub">2 team unders + 1 full-game over · same sportsbook · three different games</span><span class="sub" id="scanCount"></span></div>
-   <div class="sub" id="scanSummary">Searching for combinations targeting +100 to +150 after a 20% boost.</div>
-   <div class="games" id="opportunityList" style="margin-top:10px"><div class="empty">Waiting for the first odds scan.</div></div>
-   <div class="notice">Mathematical screens, not betting recommendations. Verify current lines and promotion eligibility.</div>
+   <div class="panel-head"><div><div class="section-kicker">LIVE GAME INTELLIGENCE</div><h2>Live Three-Leg Opportunities</h2></div><button class="boost" id="refreshOdds" type="button">↻ Scan live odds</button></div>
+   <div class="sub" id="liveStatus">Waiting for live-game odds…</div>
+   <div class="sub" style="margin:12px 0">Live markets will be ranked using score, pace, possessions remaining, projections, fouls and clock context as those data feeds are connected.</div>
+   <div class="games" id="liveOpportunityList" style="margin-top:10px"><div class="empty">No live combinations returned yet.</div></div>
+   <div class="notice">Live rankings require reliable in-game state. Until the GFI-style intelligence layer is connected, these are odds-only screens.</div>
+  </section>
+ </section>
+ <section class="page" id="page-pregame">
+  <section class="panel">
+   <div class="panel-head"><div><div class="section-kicker">PREGAME ANALYSIS</div><h2>Pregame Three-Leg Opportunities</h2></div><button class="boost" id="refreshPregame" type="button">↻ Scan pregame odds</button></div>
+   <div class="sub" id="pregameStatus">Waiting for pregame odds…</div>
+   <div class="sub" style="margin:12px 0">Ranked by available odds and the +100 to +150 boosted payout target. Statistical matchup models will be added separately.</div>
+   <div class="games" id="pregameOpportunityList" style="margin-top:10px"><div class="empty">No pregame combinations returned yet.</div></div>
+   <div class="notice">Pregame rankings will use matchup statistics, team performance, market consensus and line movement. No live-game signals are used here.</div>
   </section>
  </section>
  <section class="page" id="page-odds">
@@ -128,15 +137,22 @@ async function loadGames(){
 }
 $('refresh').addEventListener('click',loadGames);
 function fmtOdds(price){if(price===null||price===undefined)return "—";return Number(price)>0?"+"+price:String(price)}
+function renderOpportunityGroup(targetId,picks,emptyText){
+ const target=$(targetId);
+ if(!picks.length){target.innerHTML='<div class="empty">'+emptyText+'</div>';return}
+ target.innerHTML=picks.map(renderOpportunity).join("");
+}
 function renderOpportunities(data){
+ const live=data.liveOpportunities||[];
+ const pre=data.pregameOpportunities||[];
+ $('liveStatus').textContent=live.length+' qualifying live combinations · '+(data.combinationsExamined||0).toLocaleString()+' combinations screened';
+ $('pregameStatus').textContent=pre.length+' qualifying pregame combinations · 20% boost benchmark';
+ renderOpportunityGroup('liveOpportunityList',live,'No live combinations currently meet the odds filters. This can change as games and prices move.');
+ renderOpportunityGroup('pregameOpportunityList',pre,'No pregame combinations currently meet the odds filters.');
  const picks=data.opportunities||[];
  $('scanSummary').textContent=(data.combinationsExamined||0).toLocaleString()+" combinations screened · target: +100 to +150 after 20% boost. "+(picks.length?"Showing "+picks.length+" matches.":"No exact matches on this scan."); $('scanCount').textContent=picks.length+' matches';
- if(!picks.length){
-  const near=data.nearMisses||[];
-  $('opportunityList').innerHTML=near.length?'<div class="empty">No combinations hit the target exactly. Closest combinations are shown below as near misses.</div>'+near.slice(0,5).map(renderOpportunity).join(""):'<div class="empty">No qualifying three-leg combinations yet. This can happen when the slate has limited alternate team-total lines or prices outside the -400 to -600 range.</div>';
-  return;
- }
- $('opportunityList').innerHTML=picks.map(renderOpportunity).join("");
+ $('scanSummary').textContent=(data.combinationsExamined||0).toLocaleString()+' combinations screened · '+picks.length+' total matches across both modes.';
+ $('scanCount').textContent=picks.length+' total';
 }
 function renderOpportunity(item){
  return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">20% BOOST → +'+item.boostedAmerican+'</span></div>'+
