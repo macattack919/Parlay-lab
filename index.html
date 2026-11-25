@@ -220,7 +220,7 @@ function oddsBoardSignal(event, score){
   const books=clearedLines.map(line=>line.book+' '+line.point).join(', ');
   return {key:"YELLOW",label:"⚠ TOTAL CLEARED",color:"#f4b183",reason:"Current score ("+current+") is already above the displayed full-game total at "+books+". Treat this as a possible stale line or market discrepancy—not a bet signal. Confirm the exact market and that the sportsbook accepts the wager; a bet on an outcome already determined may be void.",live,lines,marketLine,edge,current,projection:Number(p.total),clearedLines};
  }
- const elapsed=Number(p.elapsedMinutes), remaining=Number(p.remainingMinutes);
+ const elapsed=Number(p.elapsedMinutes);
  const scoringPace=Number.isFinite(elapsed)&&elapsed>0?current/elapsed:null;
  const neededPace=Number.isFinite(remaining)&&remaining>0?(marketLine-current)/remaining:null;
  if(edge>=5) return {key:"GREEN",label:"OVER",color:"#86d6b5",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
