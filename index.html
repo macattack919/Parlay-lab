@@ -122,6 +122,17 @@ main{padding:22px 0 45px}.hero{display:flex;justify-content:space-between;align-
 </main>
 <script>
 const $=id=>document.getElementById(id);
+function showPage(view){
+ const target=document.getElementById('page-'+view);
+ if(!target)return;
+ document.querySelectorAll('.page').forEach(page=>page.classList.toggle('active',page===target));
+ document.querySelectorAll('nav .nav').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('nav .nav[data-view]').forEach(button=>{
+ button.addEventListener('click',()=>showPage(button.dataset.view));
+});
+
 let games=[];
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function renderGames(){
