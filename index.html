@@ -524,6 +524,6 @@ async function loadOdds(){
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 
-renderSignalHistory();loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
+renderSignalHistory();renderSignalPerformance();loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden&&signalHistory.some(item=>item.result==="OPEN"))loadGames();},60000);setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
 </script>
 </body></html>
