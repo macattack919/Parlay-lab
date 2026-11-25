@@ -74,7 +74,7 @@ export default async function handler(req, res) {
     const part = type => dateParts.find(item => item.type === type)?.value || "";
     const today = `${part("year")}${part("month")}${part("day")}`;
     const date = String(req.query?.date || today).replace(/[^0-9]/g, "");
-    if (!/^\\d{8}$/.test(date)) return res.status(400).json({ error: "Invalid date. Use YYYYMMDD." });
+    if (!/^\d{8}$/.test(date)) return res.status(400).json({ error: "Invalid date. Use YYYYMMDD." });
 
     const scoreboard = await getJson(`${SITE_BASE}/scoreboard?${new URLSearchParams({ dates: date, limit: "500", groups: "50" })}`);
     const liveEvents = (scoreboard.events || []).filter(event => event.status?.type?.state === "in");
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       const scoreboardStatus = situation ? buildScoreboardStatus({
         league: "ncaa", period, home: homeSituation, away: awaySituation
       }) : null;
-      const clockMatch = String(clock).match(/^(\\d+):(\\d{1,2})$/);
+      const clockMatch = String(clock).match(/^(\d+):(\d{1,2})$/);
       const clockSeconds = clockMatch ? Number(clockMatch[1]) * 60 + Number(clockMatch[2]) : null;
       const remainingMinutes = context.remainingMinutes ?? (clockSeconds === null ? null :
         period > 2 ? clockSeconds / 60 : ((2 - period) * 20 + clockSeconds / 60));
