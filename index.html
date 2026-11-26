@@ -293,7 +293,8 @@ function renderOdds(data){
   const signal=oddsBoardSignal(event,score);
   const signalBlock='<div style="margin:9px 0;padding:11px;border-radius:9px;border:1px solid '+signal.color+'66;background:'+signal.color+'18"><div style="font-weight:900;color:'+signal.color+';font-size:14px;letter-spacing:.7px">'+signal.label+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+esc(signal.reason)+'</div></div>';
   const liveMetricsBlock=signal.live&&signal.projection!==undefined
-   ? '<div class="total-focus"><div class="total-focus-head"><span>LIVE GAME TOTALS</span><span>'+esc(formatHalf(signal.live.period))+' · '+esc(signal.live.clock)+'</span></div>'+
+   ? '<div class="total-focus"><div class="total-focus-head"><span>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</span><span>'+esc(formatHalf(signal.live.period))+' · '+esc(signal.live.clock)+'</span></div>'+
+     '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 4px 14px;font-weight:850;font-size:14px"><span>'+esc(signal.live.away?.name||event.awayTeam)+' <strong style="font-size:21px;margin-left:7px">'+Number(signal.live.away?.score||0)+'</strong></span><span>'+esc(signal.live.home?.name||event.homeTeam)+' <strong style="font-size:21px;margin-left:7px">'+Number(signal.live.home?.score||0)+'</strong></span></div>'+
      '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+Number(signal.current??(Number(signal.live.home?.score||0)+Number(signal.live.away?.score||0)))+'</strong></div>'+
      '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+signal.projection.toFixed(1)+'</strong></div>'+
      '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small><div class="book-lines">'+signal.lines.map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div></div>'+
@@ -459,7 +460,8 @@ function renderLiveGames(data) {
   const signal = totalCleared ? 'WATCH' : suppressedUnder ? 'WATCH' : edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
   const signalColor = totalCleared ? '#f4b183' : signal==='OVER' ? '#86d6b5' : signal==='UNDER' ? '#e9a0a8' : '#f4d58d';
   const signalLabel = totalCleared ? '⚠ TOTAL CLEARED' : linesLocked ? '🔒 LINES CLOSED' : suppressedUnder ? underGuardrail.label : signal;
-  const totalFocusBlock = '<div class="total-focus"><div class="total-focus-head"><span>LIVE GAME TOTALS</span><span>'+formatHalf(g.period)+' · '+esc(g.clock)+'</span></div>'+
+  const totalFocusBlock = '<div class="total-focus"><div class="total-focus-head"><span>'+esc(g.matchup)+'</span><span>'+formatHalf(g.period)+' · '+esc(g.clock)+'</span></div>'+
+   '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 4px 14px;font-weight:850;font-size:14px"><span>'+esc(g.away?.name||"Away")+' <strong style="font-size:21px;margin-left:7px">'+Number(g.away?.score||0)+'</strong></span><span>'+esc(g.home?.name||"Home")+' <strong style="font-size:21px;margin-left:7px">'+Number(g.home?.score||0)+'</strong></span></div>'+
    '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+current+'</strong></div>'+
    '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+(Number.isFinite(Number(p.total))?Number(p.total).toFixed(1):'—')+'</strong></div>'+
    '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small>'+(lines?'<div class="book-lines">'+lines.map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div>':'<div class="sub" style="margin-top:6px">Waiting for FanDuel / DraftKings line</div>')+'</div>'+
