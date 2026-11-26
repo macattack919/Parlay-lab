@@ -93,8 +93,8 @@ export default async function handler(req, res) {
       const plays = (summary.plays || []).map(mapPlay);
       const homeStats = mapStats(summary, homeComp.id);
       const awayStats = mapStats(summary, awayComp.id);
-      const home = { id: String(homeComp.id), name: homeComp.team?.displayName || homeComp.team?.name || "Home", score: num(homeComp.score) ?? 0, stats: homeStats };
-      const away = { id: String(awayComp.id), name: awayComp.team?.displayName || awayComp.team?.name || "Away", score: num(awayComp.score) ?? 0, stats: awayStats };
+      const home = { id: String(homeComp.id), name: homeComp.team?.location || homeComp.team?.displayName || homeComp.team?.name || "Home", score: num(homeComp.score) ?? 0, stats: homeStats };
+      const away = { id: String(awayComp.id), name: awayComp.team?.location || awayComp.team?.displayName || awayComp.team?.name || "Away", score: num(awayComp.score) ?? 0, stats: awayStats };
       const period = num(event.status?.period) || 0;
       const clock = event.status?.displayClock || "";
       const homeSituation = situation ? situationTeam(situation.homeTimeouts, situation.homeFouls) : null;
