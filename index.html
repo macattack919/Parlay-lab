@@ -299,12 +299,8 @@ function renderOdds(data){
      '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small><div class="book-lines">'+signal.lines.map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div></div>'+
      '<div class="total-focus-note">Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min')+'</div></div>'
    : '<div class="sub" style="margin:8px 0">Live score, projection and sportsbook totals appear when this matchup is live and matched to GFI.</div>';
-  const combined=isLive?Number(score.home.score||0)+Number(score.away.score||0):null;
-  const scoreBlock=score
-   ? '<div class="result-row" style="background:#0a1b2b;padding:9px;border-radius:8px;margin:8px 0"><span><strong>'+esc(score.away.name)+' '+Number(score.away.score||0)+' — '+esc(score.home.name)+' '+Number(score.home.score||0)+'</strong><br><span class="muted">'+(isLive?formatHalf(score.period)+' · '+esc(score.clock):esc(score.status||'Scheduled'))+'</span></span><span style="text-align:right"><span class="status">'+(isLive?'LIVE TOTAL':'COMBINED SCORE')+'</span><br><strong style="font-size:18px;color:'+(isLive?'var(--green)':'var(--text)')+'">'+(isLive?combined:'—')+'</strong></span></div>'
-   : '<div class="sub" style="margin:7px 0">Score not matched to ESPN yet</div>';
   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
-   signalBlock+scoreBlock+liveMetricsBlock+
+   signalBlock+liveMetricsBlock+
    rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
   '</div>';
   return {signal:signal.key,remainingMinutes:Number.isFinite(Number(signal.live?.projection?.remainingMinutes))?Number(signal.live.projection.remainingMinutes):Infinity,html};
