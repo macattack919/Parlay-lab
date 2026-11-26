@@ -76,7 +76,8 @@ export default async function handler(req, res) {
     const date = String(req.query?.date || today).replace(/[^0-9]/g, "");
     if (!/^\d{8}$/.test(date)) return res.status(400).json({ error: "Invalid date. Use YYYYMMDD." });
 
-    const scoreboard = await getJson(`${SITE_BASE}/scoreboard?${new URLSearchParams({ dates: date, limit: "500", groups: "50" })}`);
+    const refreshToken = Date.now();
+    const scoreboard = await getJson(`${SITE_BASE}/scoreboard?${new URLSearchParams({ dates: date, limit: "500", groups: "50", _ts: String(refreshToken) })}`);
     const liveEvents = (scoreboard.events || []).filter(event => event.status?.type?.state === "in");
 
     const games = await mapLimit(liveEvents, 5, async event => {
@@ -87,8 +88,8 @@ export default async function handler(req, res) {
       if (!homeComp || !awayComp) return { id, error: "Missing home/away scoreboard teams." };
 
       const [summary, situation] = await Promise.all([
-        getJson(`${SITE_BASE}/summary?event=${encodeURIComponent(id)}`),
-        getJson(`${CORE_BASE}/events/${encodeURIComponent(id)}/competitions/${encodeURIComponent(id)}/situation?lang=en&region=us`).catch(() => null)
+        getJson(`${SITE_BASE}/summary?event=${encodeURIComponent(id)}&_ts=${refreshToken}`),
+        getJson(`${CORE_BASE}/events/${encodeURIComponent(id)}/competitions/${encodeURIComponent(id)}/situation?lang=en&region=us&_ts=${refreshToken}`).catch(() => null)
       ]);
       const plays = (summary.plays || []).map(mapPlay);
       const homeStats = mapStats(summary, homeComp.id);
