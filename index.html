@@ -495,7 +495,7 @@ async function loadLive() {
  $('refreshLive').disabled = true;
  $('floatingRefresh').disabled = true;
  try {
-  const response = await fetch('/api/live', { cache: 'no-store' });
+  const response = await fetch('/api/live?_ts=' + Date.now(), { cache: 'no-store' });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || ('Request failed ' + response.status));
   window.latestLiveData=data;
@@ -505,7 +505,7 @@ async function loadLive() {
  } catch (error) {
   $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
   $('liveGamesList').innerHTML = '<div class="empty">Could not load live game details. ' + esc(error.message) + '</div>';
- } finally { $('refreshLive').disabled = false; $('floatingRefresh').disabled = false; }
+ } finally { liveRefreshInFlight = false; $('refreshLive').disabled = false; $('floatingRefresh').disabled = false; }
 }
 $('refreshLive').addEventListener('click', loadLive);
 $('floatingRefresh').addEventListener('click',()=>{
@@ -513,7 +513,7 @@ $('floatingRefresh').addEventListener('click',()=>{
  const action=actions[$('floatingRefresh').dataset.view];
  if(action)action();
 });
-setInterval(() => { if (!document.hidden) loadLive(); }, 30000);
+setInterval(() => { if (!document.hidden) loadLive(); }, 15000);
 
 async function loadOdds(){
  $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;$('floatingRefresh').disabled=true;
