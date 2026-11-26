@@ -163,15 +163,8 @@ function showPage(view){
  if(!target)return;
  document.querySelectorAll('.page').forEach(page=>page.classList.toggle('active',page===target));
  document.querySelectorAll('nav .nav').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
- const refreshConfig={
-  live:{label:"Refresh live games",action:loadLive},
-  odds:{label:"Refresh lines",action:loadOdds},
-  pregame:{label:"Scan pregame odds",action:loadOdds},
-  slate:{label:"Refresh scores",action:loadGames}
- };
- const config=refreshConfig[view];
- $('floatingRefresh').hidden=!config;
- if(config){$('floatingRefreshLabel').textContent=config.label;$('floatingRefresh').dataset.view=view;}
+ $('floatingRefresh').hidden=false;
+ if($('floatingRefresh').dataset.refreshing!=="true")$('floatingRefreshLabel').textContent="Refresh all data";
  window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('nav .nav[data-view]').forEach(button=>{
@@ -187,10 +180,10 @@ function renderGames(){
  $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?formatHalf(g.period)+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
 }
 async function loadGames(){
- $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;$('floatingRefresh').disabled=true;
- try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();}
+ $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
+ try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];oddsScoreGames=games;renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();$('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Updated '+new Date(d.updated||Date.now()).toLocaleTimeString();if(window.latestOddsData)renderOdds(window.latestOddsData);}
  catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
- finally{$('refresh').disabled=false;$('floatingRefresh').disabled=false}
+ finally{$('refresh').disabled=false}
 }
 $('refresh').addEventListener('click',loadGames);
 function fmtOdds(price){if(price===null||price===undefined)return "—";return Number(price)>0?"+"+price:String(price)}
@@ -606,11 +599,19 @@ async function loadLive() {
  } finally { liveRefreshInFlight = false; $('refreshLive').disabled = false; $('floatingRefresh').disabled = false; }
 }
 $('refreshLive').addEventListener('click', loadLive);
-$('floatingRefresh').addEventListener('click',()=>{
- const actions={live:loadLive,odds:loadOdds,pregame:loadOdds,slate:loadGames};
- const action=actions[$('floatingRefresh').dataset.view];
- if(action)action();
-});
+async function refreshAllData(){
+ const button=$('floatingRefresh');
+ if(button.dataset.refreshing==="true")return;
+ button.dataset.refreshing="true";button.disabled=true;
+ $('floatingRefreshLabel').textContent="Refreshing all data…";
+ const results=await Promise.allSettled([loadGames(),loadLive(),loadOdds()]);
+ const failed=results.filter(result=>result.status==="rejected").length;
+ button.dataset.refreshing="false";button.disabled=false;
+ $('floatingRefreshLabel').textContent="Refresh all data";
+ const summary=failed?"Some data sources could not refresh. Check each board for its status.":"All data sources refreshed.";
+ $('feedStatus').textContent=summary+" ESPN scoreboard · "+new Date().toLocaleTimeString();
+}
+$('floatingRefresh').addEventListener('click',refreshAllData);
 setInterval(() => { if (!document.hidden) loadLive(); }, 15000);
 
 async function loadOdds(){
@@ -631,6 +632,6 @@ async function loadOdds(){
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 
-renderSignalHistory();renderSignalPerformance();loadGames();loadOdds();loadLive();refreshOddsScores();setInterval(()=>{if(!document.hidden&&signalHistory.some(item=>item.result==="OPEN"))loadGames();},60000);setInterval(()=>{if(!document.hidden)refreshOddsScores()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
+renderSignalHistory();renderSignalPerformance();loadGames();loadOdds();loadLive();setInterval(()=>{if(!document.hidden)loadGames()},30000);setInterval(()=>{if(!document.hidden)loadOdds()},300000);
 </script>
 </body></html>
