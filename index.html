@@ -218,6 +218,15 @@ function findScoreGame(event){
   return (ga===away||ga.includes(away)||away.includes(ga)) && (gh===home||gh.includes(home)||home.includes(gh));
  });
 }
+function getUnderGuardrail({period,remainingMinutes,margin}){
+ const p=Number(period),r=Number(remainingMinutes),m=Math.abs(Number(margin));
+ if(p>2)return {label:"OVERTIME · NO UNDER",reason:"Overtime scoring and game-ending sequences are too volatile for an automatic UNDER signal."};
+ if(m<=5)return {label:"CLOSE GAME · NO UNDER",reason:"The margin is "+m+" points. Close-game momentum swings can overwhelm a pace-based projection; suppress the UNDER and treat this as a pass, not an automatic OVER."};
+ if(m<=8)return {label:"CLOSE GAME · WATCH",reason:"The margin is "+m+" points. Keep the game on watch and suppress the UNDER recommendation because a competitive finish can change scoring quickly."};
+ if(m<=12&&Number.isFinite(r)&&r<=5)return {label:"LATE FOUL RISK · WATCH",reason:"The margin is "+m+" points with "+r.toFixed(1)+" minutes remaining. Fouling, free throws and clock stoppages may add late points; suppress the UNDER and wait."};
+ return null;
+}
+
 function oddsBoardSignal(event, score){
  if(!score || score.state!=="in") return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Pregame or waiting for live game data.",live:null,lines:null};
  const liveGames=window.latestLiveData?.games||[];
@@ -244,12 +253,9 @@ function oddsBoardSignal(event, score){
  const scoringPace=Number.isFinite(elapsed)&&elapsed>0?current/elapsed:null;
  const neededPace=Number.isFinite(remaining)&&remaining>0?(marketLine-current)/remaining:null;
  const margin=Math.abs(Number(live.home?.score||0)-Number(live.away?.score||0));
- const lateUnderRisk=Number(live.period)>=2&&Number.isFinite(remaining)&&remaining<=3&&margin<=12;
- if(edge<=-5&&lateUnderRisk){
-  const reason=margin<=8
-   ?"Close game ("+margin+" points) with "+remaining.toFixed(1)+" minutes left. Intentional fouling, free throws and clock stoppages can create a late scoring burst. Suppressing the UNDER; treat this as a pass, not an automatic OVER."
-   :"A "+margin+"-point lead with "+remaining.toFixed(1)+" minutes left can trigger intentional fouling. Suppressing the UNDER until late-game scoring risk is resolved; this is a watch, not an automatic OVER.";
-  return {key:"YELLOW",label:"LATE-GAME FOUL RISK · NO UNDER",color:"#f4d58d",reason,live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
+ const underGuardrail=getUnderGuardrail({period:live.period,remainingMinutes:remaining,margin});
+ if(edge<=-5&&underGuardrail){
+  return {key:"YELLOW",label:underGuardrail.label,color:"#f4d58d",reason:underGuardrail.reason,live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
  }
  if(edge>=5) return {key:"GREEN",label:"OVER",color:"#86d6b5",reason:"GFI projection is "+edge.toFixed(1)+" points above the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
  if(edge<=-5) return {key:"RED",label:"UNDER",color:"#e9a0a8",reason:"GFI projection is "+Math.abs(edge).toFixed(1)+" points below the live market total.",live,lines,marketLine,edge,current,scoringPace,neededPace,projection:Number(p.total)};
@@ -452,18 +458,18 @@ function renderLiveGames(data) {
   const clearedLines = lines ? lines.filter(line=>Number.isFinite(Number(line.point)) && current>Number(line.point)) : [];
   const totalCleared = clearedLines.length>0;
   const margin=Math.abs(Number(g.home?.score||0)-Number(g.away?.score||0));
-  const lateUnderRisk=Number(g.period)>=2&&Number.isFinite(remaining)&&remaining<=3&&margin<=12;
-  const suppressedUnder=!totalCleared&&edge!==null&&edge<=-5&&lateUnderRisk;
+  const underGuardrail=getUnderGuardrail({period:g.period,remainingMinutes:remaining,margin});
+  const suppressedUnder=!totalCleared&&edge!==null&&edge<=-5&&!!underGuardrail;
   const signal = totalCleared ? 'WATCH' : suppressedUnder ? 'WATCH' : edge===null ? 'WATCH' : edge>=5 ? 'OVER' : edge<=-5 ? 'UNDER' : 'WATCH';
   const signalColor = totalCleared ? '#f4b183' : signal==='OVER' ? '#86d6b5' : signal==='UNDER' ? '#e9a0a8' : '#f4d58d';
-  const signalLabel = totalCleared ? '⚠ TOTAL CLEARED' : linesLocked ? '🔒 LINES CLOSED' : suppressedUnder ? 'LATE-GAME FOUL RISK · NO UNDER' : signal;
+  const signalLabel = totalCleared ? '⚠ TOTAL CLEARED' : linesLocked ? '🔒 LINES CLOSED' : suppressedUnder ? underGuardrail.label : signal;
   const totalFocusBlock = '<div class="total-focus"><div class="total-focus-head"><span>LIVE GAME TOTALS</span><span>'+formatHalf(g.period)+' · '+esc(g.clock)+'</span></div>'+
    '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+current+'</strong></div>'+
    '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+(Number.isFinite(Number(p.total))?Number(p.total).toFixed(1):'—')+'</strong></div>'+
    '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small>'+(lines?'<div class="book-lines">'+lines.map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div>':'<div class="sub" style="margin-top:6px">Waiting for FanDuel / DraftKings line</div>')+'</div>'+
    '<div class="total-focus-note">Model vs market: '+(edge===null?'—':(edge>0?'+':'')+edge.toFixed(1)+' pts')+' · Scoring pace '+(scoringPace===null?'—':scoringPace.toFixed(2)+' pts/min')+' · Needed '+(neededPace===null?'—':neededPace.toFixed(2)+' pts/min')+'</div></div>';
   const clearedBookText = clearedLines.map(line=>esc(line.book)+' '+line.point).join(', ');
-  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+'66;background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px;letter-spacing:.7px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(totalCleared?'Current combined score ('+current+') is above the displayed full-game total at '+clearedBookText+'. This may be a stale feed or market discrepancy—not a guaranteed win. Verify the exact full-game market, refresh the line, and confirm the wager is accepted. A sportsbook may void a bet if the outcome was already determined.':linesLocked?'No FanDuel/DraftKings live total is currently available with 3 minutes or less remaining. The market may be closed.':suppressedUnder?(margin<=8?'Close game ('+margin+' points) with '+remaining.toFixed(1)+' minutes left. Intentional fouling and stopped-clock free throws can invalidate a pace-based UNDER. Suppressing the UNDER; pass rather than forcing an OVER.':'A '+margin+'-point lead with '+remaining.toFixed(1)+' minutes left may lead to intentional fouling. Suppressing the UNDER and keeping this as a watch, not an automatic OVER.'):edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
+  const signalBlock = '<div style="margin:10px 0;padding:12px;border-radius:9px;border:1px solid '+signalColor+'66;background:'+signalColor+'18"><div style="font-weight:900;color:'+signalColor+';font-size:15px;letter-spacing:.7px">'+signalLabel+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+(totalCleared?'Current combined score ('+current+') is above the displayed full-game total at '+clearedBookText+'. This may be a stale feed or market discrepancy—not a guaranteed win. Verify the exact full-game market, refresh the line, and confirm the wager is accepted. A sportsbook may void a bet if the outcome was already determined.':linesLocked?'No FanDuel/DraftKings live total is currently available with 3 minutes or less remaining. The market may be closed.':suppressedUnder?underGuardrail.reason:edge===null?'Waiting for a matched live sportsbook total and a usable model projection.':signal==='OVER'?'Model projection is at least 5 points above the FanDuel/DraftKings line.':signal==='UNDER'?'Model projection is at least 5 points below the FanDuel/DraftKings line.':'Model is within 5 points of the live line; wait for a clearer edge.')+'</div></div>';
   const quality = [q.boxScoreAvailable ? 'Box score ✓' : 'Box score pending', q.playByPlayAvailable ? 'Play-by-play ✓' : 'Play-by-play pending', q.situationAvailable ? 'Fouls/timeouts ✓' : 'Fouls/timeouts unavailable'].join(' · ');
   const html = '<div class="game-card"><div class="game-top"><strong>' + esc(g.matchup) + '</strong><span class="status">' + esc(g.status) + '</span></div>' +
    '<div class="teams"><div class="team">' + esc(g.away.name) + '</div><div class="score">' + g.away.score + '</div><div class="team">' + esc(g.home.name) + '</div><div class="score">' + g.home.score + '</div></div>' +
