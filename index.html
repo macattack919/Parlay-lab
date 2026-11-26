@@ -129,6 +129,11 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
     <button class="signal-filter" type="button" data-filter="RED">UNDER <strong id="oddsCountRed">0</strong></button>
    </div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
+   <div class="panel" id="oddsMovementPanel" style="margin-top:14px;background:#091727">
+    <div class="panel-head"><div><div class="section-kicker">MARKET BEHAVIOR RESEARCH</div><h2>Late-Game Line Movement Log</h2></div><button class="boost" id="exportOddsMovement" type="button">Export CSV</button></div>
+    <div class="sub" id="oddsMovementStatus">Captures live game totals and team totals with game clock, score, sportsbook, line and price at each odds refresh.</div>
+    <div id="oddsMovementList" class="games" style="margin-top:10px"><div class="empty">Waiting for live market snapshots.</div></div>
+   </div>
   </section>
  </section>
  <section class="page" id="page-slate">
@@ -317,6 +322,81 @@ async function refreshOddsScores(){
   $('oddsScoreStatus').textContent='Live scores unavailable: '+error.message;
  }
 }
+
+const ODDS_MOVEMENT_KEY = "parlayLab.oddsMovement.v1";
+let oddsMovementHistory = [];
+try { oddsMovementHistory = JSON.parse(localStorage.getItem(ODDS_MOVEMENT_KEY) || "[]"); } catch { oddsMovementHistory = []; }
+function saveOddsMovementHistory(){
+ try {
+  const cutoff=Date.now()-7*24*60*60*1000;
+  oddsMovementHistory=oddsMovementHistory.filter(item=>Date.parse(item.capturedAt)>=cutoff).slice(-5000);
+  localStorage.setItem(ODDS_MOVEMENT_KEY,JSON.stringify(oddsMovementHistory));
+ } catch {}
+}
+function cleanOddsTeam(value){return String(value||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function findLiveGameForOdds(event){
+ const away=cleanOddsTeam(event.awayTeam),home=cleanOddsTeam(event.homeTeam);
+ return (window.latestLiveData?.games||[]).find(game=>{
+  const ga=cleanOddsTeam(game.away?.name),gh=cleanOddsTeam(game.home?.name);
+  return (ga===away||ga.includes(away)||away.includes(ga))&&(gh===home||gh.includes(home)||home.includes(gh));
+ });
+}
+function captureOddsMovementSnapshots(data){
+ const now=Date.now(), additions=[];
+ (data.events||[]).forEach(event=>{
+  const game=findLiveGameForOdds(event);
+  if(!game||game.error)return;
+  const remaining=Number(game.projection?.remainingMinutes);
+  (event.bookmakers||[]).forEach(book=>(book.markets||[]).forEach(market=>{
+   if(market.key!=="totals"||(market.period&&market.period!=="full"))return;
+   const marketName=market.team?"TEAM TOTAL":"GAME TOTAL";
+   (market.outcomes||[]).forEach(outcome=>{
+    const point=Number(outcome.point),price=Number(outcome.price);
+    if(!Number.isFinite(point)||!Number.isFinite(price))return;
+    const side=String(outcome.name||"").toUpperCase();
+    const key=[event.id,book.key,marketName,market.team||"",side].join("|");
+    const prior=[...oddsMovementHistory].reverse().find(item=>item.key===key);
+    const deltaPoints=prior?Number((point-prior.point).toFixed(1)):null;
+    const deltaPrice=prior?price-prior.price:null;
+    const elapsedSeconds=prior?(now-Date.parse(prior.capturedAt))/1000:null;
+    const moved=!!prior&&elapsedSeconds>0&&elapsedSeconds<=20*60&&
+      (Math.abs(deltaPoints)>=0.5||Math.abs(deltaPrice)>=30);
+    const snapshot={
+     key,eventId:event.id,matchup:game.matchup||((event.awayTeam||"Away")+" at "+(event.homeTeam||"Home")),
+     book:book.title||book.key,market:marketName,team:market.team||null,side,
+     point,price,period:game.period,clock:game.clock,remainingMinutes:Number.isFinite(remaining)?remaining:null,
+     homeScore:Number(game.home?.score||0),awayScore:Number(game.away?.score||0),
+     scoreTotal:Number(game.home?.score||0)+Number(game.away?.score||0),
+     capturedAt:new Date(now).toISOString(),priorPoint:prior?.point??null,priorPrice:prior?.price??null,
+     deltaPoints,deltaPrice,elapsedSeconds,moved,lateGame:Number.isFinite(remaining)&&remaining<=5
+    };
+    additions.push(snapshot);
+   });
+  }));
+ });
+ if(additions.length){oddsMovementHistory.push(...additions);saveOddsMovementHistory();}
+ renderOddsMovementLog();
+}
+function renderOddsMovementLog(){
+ const target=$("oddsMovementList"),status=$("oddsMovementStatus");
+ if(!target||!status)return;
+ const recent=oddsMovementHistory.filter(item=>item.moved&&item.lateGame).slice(-15).reverse();
+ const lateCount=oddsMovementHistory.filter(item=>item.moved&&item.lateGame).length;
+ status.textContent=oddsMovementHistory.length+" snapshots stored locally · "+lateCount+" significant late-game moves detected · 7-day rolling history. Snapshots are captured when this app refreshes odds; gaps between refreshes are not observed.";
+ target.innerHTML=recent.length?recent.map(item=>{
+  const direction=item.deltaPoints>0?"UP":item.deltaPoints<0?"DOWN":"PRICE MOVE";
+  const change=item.deltaPoints!==0?(item.deltaPoints>0?"+":"")+item.deltaPoints.toFixed(1)+" pts":(item.deltaPrice>0?"+":"")+item.deltaPrice+" price";
+  return '<div class="result-row"><span><strong>'+esc(item.matchup)+'</strong><br><span class="muted">'+esc(item.book)+' · '+esc(item.market)+(item.team?' · '+esc(item.team):'')+' · '+esc(item.side)+'</span><br><span class="muted">'+esc(item.period===3?'OT':item.period===2?'H2':'H1')+' '+esc(item.clock)+' left · Score '+item.awayScore+'–'+item.homeScore+' · '+new Date(item.capturedAt).toLocaleTimeString()+'</span></span><span style="text-align:right"><strong>'+direction+'</strong><br>'+change+'<br><span class="muted">'+item.priorPoint+' → '+item.point+'</span></span></div>';
+ }).join(""):'<div class="empty">No significant late-game line moves recorded yet. Keep Parlay Lab open while live odds are refreshing.</div>';
+}
+$("exportOddsMovement")?.addEventListener("click",()=>{
+ const headers=["capturedAt","matchup","book","market","team","side","point","price","priorPoint","priorPrice","deltaPoints","deltaPrice","elapsedSeconds","period","clock","remainingMinutes","awayScore","homeScore","scoreTotal","lateGame","moved"];
+ const rows=[headers.join(","),...oddsMovementHistory.map(item=>headers.map(key=>'"'+String(item[key]??"").replace(/"/g,'""')+'"').join(","))];
+ const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="parlay-lab-odds-movement.csv";link.click();URL.revokeObjectURL(url);
+});
+renderOddsMovementLog();
 
 function liveTotalMarket(game) {
  const clean = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -534,6 +614,7 @@ async function loadOdds(){
   if(!response.ok)throw new Error(data.error||("Request failed "+response.status));
   window.latestOddsData=data;
   renderOdds(data);
+  captureOddsMovementSnapshots(data);
   const quota=data.dailyRemaining?(" · "+data.dailyRemaining+" API requests remaining today"):"";
   $('oddsStatus').textContent="PropLine · Updated "+new Date(data.updated).toLocaleTimeString()+quota;
  }catch(error){
