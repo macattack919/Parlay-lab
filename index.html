@@ -249,7 +249,7 @@ document.querySelectorAll("#oddsSignalFilters [data-filter]").forEach(button=>bu
  renderFilteredOdds();
 }));
 function renderFilteredOdds(){
- const shown=oddsSignalFilter==="ALL"?oddsSignalCards:oddsSignalCards.filter(card=>card.signal===oddsSignalFilter);
+ const shown=(oddsSignalFilter==="ALL"?oddsSignalCards:oddsSignalCards.filter(card=>card.signal===oddsSignalFilter)).slice().sort((a,b)=>a.remainingMinutes-b.remainingMinutes);
  $("oddsGamesList").innerHTML=shown.length?shown.map(card=>card.html).join(""):'<div class="empty">No games in this signal category right now.</div>';
 }
 function renderOdds(data){
@@ -289,7 +289,7 @@ function renderOdds(data){
    signalBlock+scoreBlock+liveMetricsBlock+
    rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
   '</div>';
-  return {signal:signal.key,html};
+  return {signal:signal.key,remainingMinutes:Number.isFinite(Number(signal.live?.projection?.remainingMinutes))?Number(signal.live.projection.remainingMinutes):Infinity,html};
  });
  oddsSignalCards=rendered;
  $("oddsCountAll").textContent=rendered.length;
@@ -342,7 +342,7 @@ document.querySelectorAll("#liveSignalFilters [data-filter]").forEach(button=>bu
 }));
 function renderFilteredLiveGames(){
  const list=$("liveGamesList");
- const shown=liveSignalFilter==="ALL"?liveSignalCards:liveSignalCards.filter(card=>card.signal===liveSignalFilter);
+ const shown=(liveSignalFilter==="ALL"?liveSignalCards:liveSignalCards.filter(card=>card.signal===liveSignalFilter)).slice().sort((a,b)=>a.remainingMinutes-b.remainingMinutes);
  list.innerHTML=shown.length?shown.map(card=>card.html).join(""):'<div class="empty">No games in this signal category right now.</div>';
 }
 function renderLiveGames(data) {
@@ -350,7 +350,7 @@ function renderLiveGames(data) {
  $('liveStatus').textContent = games.length + ' live NCAA games · ' + (data.successfulCount || 0) + ' with detailed data · Updated ' + new Date(data.updated || Date.now()).toLocaleTimeString();
  if (!games.length) { liveSignalCards=[]; ["countAll","countGreen","countYellow","countRed"].forEach(id=>$(id).textContent="0"); list.innerHTML = '<div class="empty">No NCAA games are currently live. The engine will populate this page when games enter progress.</div>'; return; }
  const rendered = games.map(g => {
-  if (g.error) return {signal:"YELLOW",html:'<div class="game-card"><strong>' + esc(g.matchup || g.id) + '</strong><div class="notice">' + esc(g.error) + '</div></div>'};
+  if (g.error) return {signal:"YELLOW",remainingMinutes:Infinity,html:'<div class="game-card"><strong>' + esc(g.matchup || g.id) + '</strong><div class="notice">' + esc(g.error) + '</div></div>'};
   const p = g.projection || {}, q = g.dataQuality || {}, s = g.scoreboardStatus || {}, c = g.context || {}, late = g.lateGameOverPotential || {};
   const hs = s.home || {}, as = s.away || {}, pos = c.possession || {};
   const metric = (label, value) => '<div class="calc-item"><small>' + label + '</small><strong>' + value + '</strong></div>';
@@ -385,7 +385,7 @@ function renderLiveGames(data) {
    '<div class="result-row"><span class="muted">Home fouls / bonus / TO</span><strong>' + esc(hs.teamFouls ?? '—') + ' / ' + esc(hs.bonus || '—') + ' / ' + esc(hs.timeouts?.remaining ?? '—') + '</strong></div>' +
    (late.qualified ? '<div class="notice">' + esc(late.label) + ': ' + esc(late.reason) + '</div>' : '') +
    '<div class="sub" style="margin-top:8px">' + esc(quality) + '</div>' + (p.note ? '<div class="sub" style="margin-top:5px">' + esc(p.note) + '</div>' : '') + '</div>';
-  return {signal:signal==='OVER'?'GREEN':signal==='UNDER'?'RED':'YELLOW',html};
+  return {signal:signal==='OVER'?'GREEN':signal==='UNDER'?'RED':'YELLOW',remainingMinutes:Number.isFinite(remaining)?remaining:Infinity,html};
  });
  liveSignalCards=rendered;
  $("countAll").textContent=rendered.length;
