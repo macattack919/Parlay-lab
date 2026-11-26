@@ -44,6 +44,7 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
   <button class="nav" data-view="live">Live Game</button>
   <button class="nav" data-view="pregame">Pregame</button>
   <button class="nav" data-view="odds">Odds Board</button>
+  <button class="nav" data-view="research">Market Research</button>
   <button class="nav" data-view="slate">Today's Slate</button>
   <button class="nav" data-view="results">Results Lab</button>
  </nav>
@@ -129,11 +130,13 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
     <button class="signal-filter" type="button" data-filter="RED">UNDER <strong id="oddsCountRed">0</strong></button>
    </div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
-   <div class="panel" id="oddsMovementPanel" style="margin-top:14px;background:#091727">
-    <div class="panel-head"><div><div class="section-kicker">MARKET BEHAVIOR RESEARCH</div><h2>Late-Game Line Movement Log</h2></div><button class="boost" id="exportOddsMovement" type="button">Export CSV</button></div>
-    <div class="sub" id="oddsMovementStatus">Captures live game totals and team totals with game clock, score, sportsbook, line and price at each odds refresh.</div>
-    <div id="oddsMovementList" class="games" style="margin-top:10px"><div class="empty">Waiting for live market snapshots.</div></div>
-   </div>
+  </section>
+ </section>
+ <section class="page" id="page-research">
+  <section class="panel" style="background:#091727">
+   <div class="panel-head"><div><div class="section-kicker">MARKET BEHAVIOR RESEARCH</div><h2>Late-Game Line Movement Log</h2></div><button class="boost" id="exportOddsMovement" type="button">Export CSV</button></div>
+   <div class="sub" id="oddsMovementStatus">Captures live game totals and team totals with game clock, score, sportsbook, line and price at each odds refresh.</div>
+   <div id="oddsMovementList" class="games" style="margin-top:10px"><div class="empty">Waiting for live market snapshots.</div></div>
   </section>
  </section>
  <section class="page" id="page-slate">
