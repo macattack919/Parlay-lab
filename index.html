@@ -277,13 +277,27 @@ function renderOdds(data){
  renderOpportunities(data);
  if(!events.length){$('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';return}
  const rendered=events.map(event=>{
-  const rows=[];
+  const groupedRows=new Map();
   event.bookmakers.forEach(book=>book.markets.forEach(market=>{
    const label=market.team?market.team+" team total":"Full-game total";
    const over=market.outcomes.find(o=>String(o.name).toLowerCase()==="over");
    const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
-   rows.push({book:book.title,label,point:over?.point??under?.point,over,under,link:book.link});
+   const point=over?.point??under?.point;
+   if(point===undefined||point===null)return;
+   const key=[book.key||book.title,label].join("|");
+   if(!groupedRows.has(key))groupedRows.set(key,[]);
+   groupedRows.get(key).push({book:book.title,label,point,over,under,link:book.link});
   }));
+  const rows=[...groupedRows.values()].map(options=>{
+   const complete=options.filter(row=>Number.isFinite(Number(row.over?.price))&&Number.isFinite(Number(row.under?.price)));
+   const candidates=complete.length?complete:options;
+   // Main line is the point with the two-way price closest to a balanced -110/-110 market.
+   return candidates.reduce((best,row)=>{
+    const score=(Number.isFinite(Number(row.over?.price))?Math.abs(Number(row.over.price)+110):1000)+
+      (Number.isFinite(Number(row.under?.price))?Math.abs(Number(row.under.price)+110):1000);
+    return !best||score<best.score?{row,score}:best;
+   },null).row;
+  });
   const score=findScoreGame(event);
   const isLive=score?.state==="in";
   const signal=oddsBoardSignal(event,score);
