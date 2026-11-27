@@ -27,6 +27,7 @@ function buildOpportunities(events) {
   const byBook = new Map();
   for (const event of events) {
     for (const book of (event.bookmakers || [])) {
+      if (!["fanduel","draftkings"].includes(String(book.key||"").toLowerCase())) continue;
       if (!byBook.has(book.key)) byBook.set(book.key, { title: book.title || book.key, under: [], over: [] });
       const bucket = byBook.get(book.key);
       for (const market of (book.markets || [])) {
@@ -42,48 +43,27 @@ function buildOpportunities(events) {
       }
     }
   }
-
-  const exact = [];
-  const near = [];
-  const liveExact = [];
-  const pregameExact = [];
+  const combinations = [];
   let examined = 0;
   for (const [bookKey, bucket] of byBook) {
-    const under = bucket.under;
-    const over = bucket.over;
-    for (let i = 0; i < under.length; i++) {
-      for (let j = i + 1; j < under.length; j++) {
-        if (under[i].eventId === under[j].eventId) continue;
-        for (let k = 0; k < over.length; k++) {
-          if (over[k].eventId === under[i].eventId || over[k].eventId === under[j].eventId) continue;
-          if (++examined > 50000) break;
-          const legs = [under[i], under[j], over[k]];
-          const decimal = legs.reduce((product, leg) => product * toDecimal(leg.price), 1);
-          const baseAmerican = toAmerican(decimal);
-          const boostedDecimal = 1 + (decimal - 1) * 1.2;
-          const boostedAmerican = toAmerican(boostedDecimal);
-          const item = {
-            bookKey, bookTitle: bucket.title, legs,
-            baseAmerican, boostedAmerican, decimal: Number(decimal.toFixed(4)),
-            boostedDecimal: Number(boostedDecimal.toFixed(4)),
-            boostPercent: 20
-          };
-          if (boostedAmerican >= 100 && boostedAmerican <= 150) {
-            exact.push(item);
-            if (legs.every(leg => leg.live)) liveExact.push(item);
-            else if (legs.every(leg => !leg.live)) pregameExact.push(item);
-          } else near.push({ ...item, distance: Math.min(Math.abs(boostedAmerican - 100), Math.abs(boostedAmerican - 150)) });
+    for (let i=0;i<bucket.under.length;i++) {
+      for (let j=i+1;j<bucket.under.length;j++) {
+        if(bucket.under[i].eventId===bucket.under[j].eventId)continue;
+        for(const over of bucket.over) {
+          if(over.eventId===bucket.under[i].eventId||over.eventId===bucket.under[j].eventId)continue;
+          if(++examined>50000)break;
+          const legs=[bucket.under[i],bucket.under[j],over];
+          const decimal=legs.reduce((product,leg)=>product*toDecimal(leg.price),1);
+          combinations.push({bookKey,bookTitle:bucket.title,legs,baseAmerican:toAmerican(decimal),decimal:Number(decimal.toFixed(4))});
         }
-        if (examined > 50000) break;
+        if(examined>50000)break;
       }
-      if (examined > 50000) break;
+      if(examined>50000)break;
     }
-    if (examined > 50000) break;
+    if(examined>50000)break;
   }
-  const sort = (a, b) => Math.abs(a.boostedAmerican - 125) - Math.abs(b.boostedAmerican - 125);
-  exact.sort(sort);
-  near.sort(sort);
-  return { opportunities: exact.slice(0, 30), liveOpportunities: liveExact.slice(0, 30), pregameOpportunities: pregameExact.slice(0, 30), nearMisses: near.slice(0, 12), combinationsExamined: examined };
+  combinations.sort((a,b)=>Math.abs(a.baseAmerican-125)-Math.abs(b.baseAmerican-125));
+  return {threeLegOpportunities:combinations.slice(0,50),combinationsExamined:examined};
 }
 
 export default async function handler(req, res) {
