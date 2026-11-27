@@ -293,7 +293,7 @@ function renderOdds(data){
    return (ea===away||ea.includes(away)||away.includes(ea))&&(eh===home||eh.includes(home)||home.includes(eh));
   })||{id:score.id,awayTeam:score.away?.name||"Away",homeTeam:score.home?.name||"Home",bookmakers:[]};
   const candidates=[];
-  (event.bookmakers||[]).forEach(book=>{
+  if(event.live===true)(event.bookmakers||[]).forEach(book=>{
    if(!["fanduel","draftkings"].includes(String(book.key||"").toLowerCase()))return;
    (book.markets||[]).forEach(market=>{
     if(market.key!=="totals"||(market.period&&market.period!=="full")||market.lineType==="alternate")return;
@@ -373,7 +373,7 @@ function captureOddsMovementSnapshots(data){
  const now=Date.now(), additions=[];
  (data.events||[]).forEach(event=>{
   const game=findLiveGameForOdds(event);
-  if(!game||game.error)return;
+  if(!game||game.error||event.live!==true)return;
   const remaining=Number(game.projection?.remainingMinutes);
   (event.bookmakers||[]).forEach(book=>(book.markets||[]).forEach(market=>{
    if(market.key!=="totals"||(market.period&&market.period!=="full"))return;
@@ -434,7 +434,7 @@ function liveTotalMarket(game) {
   return (ea===away || ea.includes(away) || away.includes(ea)) &&
          (eh===home || eh.includes(home) || home.includes(eh));
  });
- if (!event) return null;
+ if (!event || event.live !== true) return null;
  const lines=[];
  (event.bookmakers||[]).forEach(book=>{
   if (!/fanduel|draftkings/i.test(book.key+' '+book.title)) return;
