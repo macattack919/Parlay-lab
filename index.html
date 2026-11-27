@@ -43,7 +43,10 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
   <button class="nav active" data-view="dashboard">Dashboard</button>
   <button class="nav" data-view="live">Live Game</button>
   <button class="nav" data-view="pregame">Pregame</button>
-  <button class="nav" data-view="odds">Odds Board</button>
+  <button class="nav" data-view="odds">Team Totals</button>
+  <button class="nav" data-view="gameovers">Game Overs</button>
+  <button class="nav" data-view="gameunders">Game Unders</button>
+  <button class="nav" data-view="threeleg">Three-Leg</button>
   <button class="nav" data-view="research">Market Research</button>
   <button class="nav" data-view="slate">Today's Slate</button>
   <button class="nav" data-view="results">Results Lab</button>
@@ -66,9 +69,8 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
      <p class="sub">The manual calculator has been retired. Parlay Lab now builds its research from the live sportsbook feed.</p>
      <div class="result-row"><span class="muted">Strategy</span><strong>2 team-total unders + 1 game over</strong></div>
      <div class="result-row"><span class="muted">Individual leg range</span><strong>-400 to -600</strong></div>
-     <div class="result-row"><span class="muted">Target after boost</span><strong style="color:var(--green)">+100 to +150</strong></div>
-     <div class="result-row"><span class="muted">Boost benchmark</span><strong>20% · optional</strong></div>
-     <div class="notice">A boost is only a comparison scenario. The app never assumes a promotion is available.</div>
+     <div class="result-row"><span class="muted">Three-leg structure</span><strong>2 team-total UNDERS + 1 game OVER</strong></div>
+     <div class="result-row"><span class="muted">Payout calculation</span><strong>Actual combined odds · no boost</strong></div>
     </section>
    </div>
    <aside>
@@ -111,10 +113,9 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
  </section>
  <section class="page" id="page-pregame">
   <section class="panel">
-   <div class="panel-head"><div><div class="section-kicker">PREGAME ANALYSIS</div><h2>Pregame Three-Leg Opportunities</h2></div><button class="boost" id="refreshPregame" type="button">↻ Scan pregame odds</button></div>
+   <div class="panel-head"><div><div class="section-kicker">PREGAME ANALYSIS</div><h2>Pregame Matchup Analysis</h2></div><button class="boost" id="refreshPregame" type="button">↻ Scan pregame odds</button></div>
    <div class="sub" id="pregameStatus">Waiting for pregame odds…</div>
-   <div class="sub" style="margin:12px 0">Ranked by available odds and the +100 to +150 boosted payout target. Statistical matchup models will be added separately.</div>
-   <div class="games" id="pregameOpportunityList" style="margin-top:10px"><div class="empty">No pregame combinations returned yet.</div></div>
+   <div class="sub" style="margin:12px 0">Pregame team and game total markets will be evaluated here using matchup statistics and market context.</div>
    <div class="notice">Pregame rankings will use matchup statistics, team performance, market consensus and line movement. No live-game signals are used here.</div>
   </section>
  </section>
@@ -130,6 +131,18 @@ main{padding:12px 0 45px}.hero{display:flex;justify-content:space-between;align-
     <button class="signal-filter" type="button" data-filter="RED">UNDER <strong id="oddsCountRed">0</strong></button>
    </div>
    <div class="games" id="oddsGamesList" style="margin-top:12px"><div class="empty">Loading available market lines…</div></div>
+  </section>
+ </section>
+ <section class="page" id="page-gameovers">
+  <section class="panel"><div class="panel-head"><div><div class="section-kicker">FULL-GAME TOTALS</div><h2>Game Overs</h2></div></div><div class="sub">Main full-game Over line only · FanDuel and DraftKings.</div><div class="games" id="gameOversList" style="margin-top:12px"><div class="empty">Loading game Over lines…</div></div></section>
+ </section>
+ <section class="page" id="page-gameunders">
+  <section class="panel"><div class="panel-head"><div><div class="section-kicker">FULL-GAME TOTALS</div><h2>Game Unders</h2></div></div><div class="sub">Main full-game Under line only · FanDuel and DraftKings.</div><div class="games" id="gameUndersList" style="margin-top:12px"><div class="empty">Loading game Under lines…</div></div></section>
+ </section>
+ <section class="page" id="page-threeleg">
+  <section class="panel"><div class="panel-head"><div><div class="section-kicker">PARLAY CONSTRUCTION</div><h2>Three-Leg Builder</h2></div></div>
+   <div class="sub">Current strategy scanner: two team-total UNDERS and one full-game OVER, from three different games at the same sportsbook. Shows actual combined odds without a boost.</div>
+   <div class="games" id="threeLegOpportunityList" style="margin-top:12px"><div class="empty">Scanning available three-leg combinations…</div></div>
   </section>
  </section>
  <section class="page" id="page-research">
@@ -193,15 +206,13 @@ function renderOpportunityGroup(targetId,picks,emptyText){
  target.innerHTML=picks.map(renderOpportunity).join("");
 }
 function renderOpportunities(data){
- const pre=data.pregameOpportunities||[];
- $('pregameStatus').textContent=pre.length+' qualifying pregame combinations · 20% boost benchmark';
- renderOpportunityGroup('pregameOpportunityList',pre,'No pregame combinations currently meet the odds filters.');
+ const picks=data.threeLegOpportunities||[];
+ renderOpportunityGroup('threeLegOpportunityList',picks,'No three-leg combinations currently meet the leg filters.');
 }
 function renderOpportunity(item){
- return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">20% BOOST → +'+item.boostedAmerican+'</span></div>'+
+ return '<div class="game-card"><div class="game-top"><strong>'+esc(item.bookTitle)+'</strong><span class="status">THREE LEGS</span></div>'+
  item.legs.map((leg,i)=>'<div class="result-row"><span><strong>'+ (i+1)+'. '+esc(leg.market)+'</strong><br><span class="muted">'+esc(leg.team?leg.team+' · '+leg.matchup:leg.matchup)+' · '+(leg.point??'—')+'</span></span><span style="text-align:right"><strong>'+fmtOdds(leg.price)+'</strong>'+(leg.bookLink?'<br><a href="'+esc(leg.bookLink)+'" target="_blank" rel="noopener" style="color:var(--cyan);font-size:9px">Book link ↗</a>':'')+'</span></div>').join("")+
- '<div class="result-row"><span class="muted">Combined before boost</span><strong>'+(item.baseAmerican>0?'+':'')+item.baseAmerican+'</strong></div>'+
- '<div class="result-row"><span class="muted">Combined after 20% boost</span><strong style="color:var(--green)">+'+item.boostedAmerican+'</strong></div></div>';
+ '<div class="result-row"><span class="muted">Actual combined odds</span><strong style="color:var(--green)">'+(item.baseAmerican>0?'+':'')+item.baseAmerican+'</strong></div></div>';
 }
 let oddsScoreGames = [];
 function cleanTeamName(value){
