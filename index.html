@@ -286,53 +286,65 @@ function renderOdds(data){
  $('gameTotalCount').textContent=data.gameTotalMarkets??0;
  $('quotaSummary').textContent=data.dailyRemaining?data.dailyRemaining+' left today':'Available';
  renderOpportunities(data);
- if(!events.length){$('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';return}
- const rendered=events.map(event=>{
-  const groupedRows=new Map();
-  event.bookmakers.forEach(book=>book.markets.forEach(market=>{
-   const label=market.team?market.team+" team total":"Full-game total";
-   const over=market.outcomes.find(o=>String(o.name).toLowerCase()==="over");
-   const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
-   const point=over?.point??under?.point;
-   if(point===undefined||point===null)return;
-   const key=[book.key||book.title,label].join("|");
-   if(!groupedRows.has(key))groupedRows.set(key,[]);
-   groupedRows.get(key).push({book:book.title,label,point,over,under,link:book.link});
-  }));
-  const rows=[...groupedRows.values()].map(options=>{
-   const complete=options.filter(row=>Number.isFinite(Number(row.over?.price))&&Number.isFinite(Number(row.under?.price)));
-   const candidates=complete.length?complete:options;
-   // Main line is the point with the two-way price closest to a balanced -110/-110 market.
-   return candidates.reduce((best,row)=>{
-    const score=(Number.isFinite(Number(row.over?.price))?Math.abs(Number(row.over.price)+110):1000)+
-      (Number.isFinite(Number(row.under?.price))?Math.abs(Number(row.under.price)+110):1000);
-    return !best||score<best.score?{row,score}:best;
-   },null).row;
-  });
-  const score=findScoreGame(event);
-  const isLive=score?.state==="in";
-  const signal=oddsBoardSignal(event,score);
-  const signalBlock=signal.live?'':'<div style="margin:9px 0;padding:11px;border-radius:9px;border:1px solid '+signal.color+'66;background:'+signal.color+'18"><div style="font-weight:900;color:'+signal.color+';font-size:14px;letter-spacing:.7px">'+signal.label+'</div><div class="sub" style="margin-top:4px;color:var(--text)">'+esc(signal.reason)+'</div></div>';
-  const liveMetricsBlock=signal.live&&signal.projection!==undefined
-   ? '<div class="total-focus"><div class="total-focus-head"><span class="total-focus-signal" style="color:'+signal.color+'">'+esc(signal.label)+'</span><span><span class="total-focus-clock">'+esc(formatHalf(signal.live.period))+' · '+esc(signal.live.clock)+'</span>'+(signal.live.context?.timeoutActive?'<span class="timeout-pill">TIMEOUT'+(signal.live.context.timeoutTeamName?' · '+esc(signal.live.context.timeoutTeamName):'')+'</span>':'')+'</span></div>'+
-     '<div class="total-focus-scoreboard"><div class="total-focus-team"><span>'+esc(signal.live.away?.name||event.awayTeam)+'</span><strong>'+Number(signal.live.away?.score||0)+'</strong></div><div class="total-focus-team"><span>'+esc(signal.live.home?.name||event.homeTeam)+'</span><strong>'+Number(signal.live.home?.score||0)+'</strong></div></div>'+
-     '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+Number(signal.current??(Number(signal.live.home?.score||0)+Number(signal.live.away?.score||0)))+'</strong></div>'+
-     '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+signal.projection.toFixed(1)+'</strong></div>'+
-     '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small><div class="book-lines">'+signal.lines.map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div></div>'+
-     '<div class="total-focus-note">Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min')+'</div></div>'
-   : '<div class="sub" style="margin:8px 0">Live score, projection and sportsbook totals appear when this matchup is live and matched to GFI.</div>';
-  const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
-   signalBlock+liveMetricsBlock+
-   rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+
-  '</div>';
-  return {signal:signal.key,remainingMinutes:Number.isFinite(Number(signal.live?.projection?.remainingMinutes))?Number(signal.live.projection.remainingMinutes):Infinity,html};
- });
- oddsSignalCards=rendered;
- $("oddsCountAll").textContent=rendered.length;
- $("oddsCountGreen").textContent=rendered.filter(card=>card.signal==="GREEN").length;
- $("oddsCountYellow").textContent=rendered.filter(card=>card.signal==="YELLOW").length;
- $("oddsCountRed").textContent=rendered.filter(card=>card.signal==="RED").length;
+ if(!events.length){
+  $('oddsGamesList').innerHTML='<div class="empty">PropLine connected, but no eligible totals were returned for this slate.</div>';
+  $('gameOversList').innerHTML='<div class="empty">No game Over lines returned.</div>';
+  $('gameUndersList').innerHTML='<div class="empty">No game Under lines returned.</div>';
+  return;
+ }
+ const teamCards=[],overCards=[],underCards=[];
+ const chooseMain=options=>{
+  const complete=options.filter(row=>Number.isFinite(Number(row.over?.price))&&Number.isFinite(Number(row.under?.price)));
+  const candidates=complete.length?complete:options;
+  return candidates.reduce((best,row)=>{
+   const score=(Number.isFinite(Number(row.over?.price))?Math.abs(Number(row.over.price)+110):1000)+
+    (Number.isFinite(Number(row.under?.price))?Math.abs(Number(row.under.price)+110):1000);
+   return !best||score<best.score?{row,score}:best;
+  },null)?.row;
+ };
+ for(const event of events){
+  const groups=new Map();
+  for(const book of event.bookmakers||[]){
+   if(!/fanduel|draftkings/i.test(book.key+' '+book.title))continue;
+   for(const market of book.markets||[]){
+    if(market.period&&market.period!=="full")continue;
+    const over=market.outcomes.find(o=>String(o.name).toLowerCase()==="over");
+    const under=market.outcomes.find(o=>String(o.name).toLowerCase()==="under");
+    const point=over?.point??under?.point;
+    if(point===undefined||point===null)continue;
+    const label=market.team||"GAME TOTAL";
+    const key=[book.key||book.title,label].join("|");
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push({book:book.title,label,point,over,under,team:market.team||null,link:book.link});
+   }
+  }
+  const main=[...groups.values()].map(chooseMain).filter(Boolean);
+  const teamRows=main.filter(row=>row.team);
+  const gameRows=main.filter(row=>!row.team);
+  const score=findScoreGame(event),isLive=score?.state==="in";
+  if(teamRows.length){
+   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>'+
+    teamRows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' team total · '+row.point+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join("")+'</div>';
+   teamCards.push({signal:"YELLOW",remainingMinutes:Infinity,html});
+  }
+  for(const row of gameRows){
+   const common='<div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">'+(isLive?'LIVE':event.live?'LIVE ODDS':'PREGAME')+'</span></div>';
+   if(row.over){
+    overCards.push({signal:"GREEN",remainingMinutes:Infinity,html:'<div class="game-card">'+common+'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">Game total OVER · '+row.point+'</span></span><strong>'+fmtOdds(row.over.price)+'</strong></div></div>'});
+   }
+   if(row.under){
+    underCards.push({signal:"RED",remainingMinutes:Infinity,html:'<div class="game-card">'+common+'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">Game total UNDER · '+row.point+'</span></span><strong>'+fmtOdds(row.under.price)+'</strong></div></div>'});
+   }
+  }
+ }
+ oddsSignalCards=teamCards;
+ $("oddsCountAll").textContent=teamCards.length;
+ $("oddsCountGreen").textContent=0;
+ $("oddsCountYellow").textContent=teamCards.length;
+ $("oddsCountRed").textContent=0;
  renderFilteredOdds();
+ $('gameOversList').innerHTML=overCards.length?overCards.map(card=>card.html).join(""):'<div class="empty">No main game Over lines available from FanDuel or DraftKings.</div>';
+ $('gameUndersList').innerHTML=underCards.length?underCards.map(card=>card.html).join(""):'<div class="empty">No main game Under lines available from FanDuel or DraftKings.</div>';
 }
 async function refreshOddsScores(){
  try{
