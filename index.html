@@ -273,10 +273,22 @@ function renderFilteredOdds(){
 }
 function renderOdds(data){
  const liveScores=oddsScoreGames.filter(game=>game.state==="in");
- $('oddsGames').textContent=liveScores.length;
+ const cleanForLive=value=>cleanTeamName(value);
+ const providerOnlyEvents=(data.events||[]).filter(event=>event.live===true&&!liveScores.some(game=>{
+  const away=cleanForLive(game.away?.name),home=cleanForLive(game.home?.name);
+  const eventAway=cleanForLive(event.awayTeam),eventHome=cleanForLive(event.homeTeam);
+  return (away===eventAway||away.includes(eventAway)||eventAway.includes(away))&&
+         (home===eventHome||home.includes(eventHome)||eventHome.includes(home));
+ }));
+ const liveEntries=liveScores.map(score=>({score,providerOnly:false}));
+ providerOnlyEvents.forEach(event=>liveEntries.push({
+  score:{id:event.id,state:"in",away:{name:event.awayTeam,score:null},home:{name:event.homeTeam,score:null}},
+  providerOnly:true
+ }));
+ $('oddsGames').textContent=liveEntries.length;
  $('quotaSummary').textContent=data.dailyRemaining?data.dailyRemaining+' left today':'Available';
  renderOpportunities(data);
- if(!liveScores.length){
+ if(!liveEntries.length){
   $('teamTotalCount').textContent='0';
   $('gameTotalCount').textContent='0';
   oddsSignalCards=[];
@@ -285,7 +297,7 @@ function renderOdds(data){
   return;
  }
  let teamMarketCount=0,gameMarketCount=0;
- const rendered=liveScores.map(score=>{
+ const rendered=liveEntries.map(({score,providerOnly})=>{
   const clean=value=>cleanTeamName(value);
   const away=clean(score.away?.name),home=clean(score.home?.name);
   const event=(data.events||[]).find(item=>{
@@ -327,7 +339,7 @@ function renderOdds(data){
      '<div class="total-focus-note">'+(hasValidProjection&&signal.lines?.length?'Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min'):!hasValidProjection?'GFI is waiting for a valid projection. Current score and live market lines are still shown.':'Waiting for FanDuel / DraftKings live full-game total.')+'</div></div>'
    : '<div class="notice">WAITING · Live GFI game data is not available yet.</div>';
   const marketRows=rows.length?rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join(''):'<div class="notice">WAITING · No live DraftKings or FanDuel totals are available for this game. Pregame markets are hidden.</div>';
-  const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">LIVE</span></div>'+liveMetricsBlock+marketRows+'</div>';
+  const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">LIVE'+(providerOnly?' · SCORE FEED PENDING':'')+'</span></div>'+liveMetricsBlock+marketRows+'</div>';
   return {signal:signal.key,remainingMinutes:Number.isFinite(Number(live?.projection?.remainingMinutes))?Number(live.projection.remainingMinutes):Infinity,html};
  });
  $('teamTotalCount').textContent=teamMarketCount;
