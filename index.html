@@ -317,14 +317,15 @@ function renderOdds(data){
   gameMarketCount+=rows.filter(row=>!row.team).length;
   const signal=oddsBoardSignal(event,score);
   const live=signal.live||window.latestLiveData?.games?.find(game=>clean(game.away?.name)===away&&clean(game.home?.name)===home);
-  const liveMetricsBlock=live?.projection
+  const hasValidProjection=signal.projection!==null&&signal.projection!==undefined&&Number.isFinite(Number(signal.projection));
+  const liveMetricsBlock=live
    ? '<div class="total-focus"><div class="total-focus-head"><span class="total-focus-signal" style="color:'+signal.color+'">'+esc(signal.label)+'</span><span><span class="total-focus-clock">'+esc(formatHalf(live.period))+' · '+esc(live.clock)+'</span>'+(live.context?.timeoutActive?'<span class="timeout-pill">TIMEOUT'+(live.context.timeoutTeamName?' · '+esc(live.context.timeoutTeamName):'')+'</span>':'')+'</span></div>'+
      '<div class="total-focus-scoreboard"><div class="total-focus-team"><span>'+esc(live.away?.name||event.awayTeam)+'</span><strong>'+Number(live.away?.score||0)+'</strong></div><div class="total-focus-team"><span>'+esc(live.home?.name||event.homeTeam)+'</span><strong>'+Number(live.home?.score||0)+'</strong></div></div>'+
      '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+Number(signal.current??(Number(live.home?.score||0)+Number(live.away?.score||0)))+'</strong></div>'+
-     '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+Number(signal.projection).toFixed(1)+'</strong></div>'+
+     '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+(hasValidProjection?Number(signal.projection).toFixed(1):'WAITING')+'</strong></div>'+
      '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small><div class="book-lines">'+(signal.lines||[]).map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div></div>'+
-     '<div class="total-focus-note">'+(signal.lines?.length?'Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min'):'Waiting for FanDuel / DraftKings live full-game total.')+'</div></div>'
-   : '<div class="notice">WAITING · Live GFI projection is not available yet.</div>';
+     '<div class="total-focus-note">'+(hasValidProjection&&signal.lines?.length?'Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min'):!hasValidProjection?'GFI is waiting for a valid projection. Current score and live market lines are still shown.':'Waiting for FanDuel / DraftKings live full-game total.')+'</div></div>'
+   : '<div class="notice">WAITING · Live GFI game data is not available yet.</div>';
   const marketRows=rows.length?rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join(''):'<div class="notice">WAITING · No live DraftKings or FanDuel totals are available for this game. Pregame markets are hidden.</div>';
   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">LIVE</span></div>'+liveMetricsBlock+marketRows+'</div>';
   return {signal:signal.key,remainingMinutes:Number.isFinite(Number(live?.projection?.remainingMinutes))?Number(live.projection.remainingMinutes):Infinity,html};
