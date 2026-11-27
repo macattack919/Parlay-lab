@@ -31,7 +31,7 @@ function buildOpportunities(events) {
       if (!byBook.has(book.key)) byBook.set(book.key, { title: book.title || book.key, under: [], over: [] });
       const bucket = byBook.get(book.key);
       for (const market of (book.markets || [])) {
-        if (market.key !== "totals" || (market.period && market.period !== "full")) continue;
+        if (market.key !== "totals" || (market.period && market.period !== "full") || market.lineType === "alternate") continue;
         for (const outcome of (market.outcomes || [])) {
           const side = String(outcome.name || "").toLowerCase();
           const price = Number(outcome.price);
