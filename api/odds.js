@@ -144,7 +144,9 @@ export default async function handler(req, res) {
     const gameTotalMarkets = totalMarkets - teamTotalMarkets;
     const scan = buildOpportunities(normalized);
 
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    res.setHeader("Cache-Control", "no-store, no-cache, max-age=0, must-revalidate");
+    res.setHeader("CDN-Cache-Control", "no-store");
+    res.setHeader("Vercel-CDN-Cache-Control", "no-store");
     return res.status(200).json({
       source: "PropLine",
       sport: "basketball_ncaab",
