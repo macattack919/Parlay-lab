@@ -537,10 +537,10 @@ function renderLiveGames(data) {
    '<div class="sub" style="margin-top:8px">' + formatHalf(g.period) + ' · ' + esc(g.clock) + ' · ' + esc(p.sample || 'Projection pending') + '</div>' +
    '<div class="calc-grid">' + metric('PROJECTED FINAL', p.total ?? '—') + metric('REMAINING POSSESSIONS', p.projectedRemainingPossessions ?? '—') + metric('POSSESSIONS / MIN', p.possessionsPerMinute ?? '—') + metric('AWAY PPP', p.awayPPP ?? '—') + metric('HOME PPP', p.homePPP ?? '—') + metric('AWAY PROJECTED', p.awayProjectedPoints ?? '—') + metric('HOME PROJECTED', p.homeProjectedPoints ?? '—') + metric('CURRENT TOTAL', current) + '</div>' +
    totalFocusBlock +
-   '<div class="result-row"><span class="muted">Possession estimate</span><strong>' + esc(pos.source || 'Unavailable') + ' · ' + esc(pos.confidence || 'unknown') + '</strong></div>' +
+   '<div class="result-row"><span class="muted">Last inferred possession</span><strong>' + esc(pos.source || 'Unavailable') + ' · ' + esc(pos.confidence || 'unknown') + '</strong></div>' +
    '<div class="result-row"><span class="muted">Timeout status</span><strong>' + (c.timeoutActive ? 'TIMEOUT IN PROGRESS' : 'Live play / not in timeout') + '</strong></div>' +
-   '<div class="result-row"><span class="muted">Away fouls / bonus / TO</span><strong>' + esc(as.teamFouls ?? '—') + ' / ' + esc(as.bonus || '—') + ' / ' + esc(as.timeouts?.remaining ?? '—') + '</strong></div>' +
-   '<div class="result-row"><span class="muted">Home fouls / bonus / TO</span><strong>' + esc(hs.teamFouls ?? '—') + ' / ' + esc(hs.bonus || '—') + ' / ' + esc(hs.timeouts?.remaining ?? '—') + '</strong></div>' +
+   '<div class="result-row"><span class="muted">Away team fouls · bonus · timeouts left</span><strong>' + (as.foulsReported ? esc(as.teamFouls) : 'Unavailable') + ' · ' + esc(as.bonusDisplay || 'Unavailable') + ' · ' + (as.timeoutsReported ? esc(as.timeouts.remaining) : 'Unavailable') + '</strong></div>' +
+   '<div class="result-row"><span class="muted">Home team fouls · bonus · timeouts left</span><strong>' + (hs.foulsReported ? esc(hs.teamFouls) : 'Unavailable') + ' · ' + esc(hs.bonusDisplay || 'Unavailable') + ' · ' + (hs.timeoutsReported ? esc(hs.timeouts.remaining) : 'Unavailable') + '</strong></div>' +
    (late.qualified ? '<div class="notice">' + esc(late.label) + ': ' + esc(late.reason) + '</div>' : '') +
    '<div class="sub" style="margin-top:8px">' + esc(quality) + '</div>' + (p.note ? '<div class="sub" style="margin-top:5px">' + esc(p.note) + '</div>' : '') + '</div>';
   return {watchKey,signal:signal==='OVER'?'GREEN':signal==='UNDER'?'RED':'YELLOW',remainingMinutes:Number.isFinite(remaining)?remaining:Infinity,html};
