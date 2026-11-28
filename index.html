@@ -290,7 +290,7 @@ document.querySelectorAll("#oddsSignalFilters [data-filter]").forEach(button=>bu
  renderFilteredOdds();
 }));
 function renderFilteredOdds(){
- const shown=oddsSignalCards.filter(card=>isWatched(card.watchKey)||oddsSignalFilter==="ALL"||card.signal===oddsSignalFilter).slice().sort((a,b)=>(Number(isWatched(b.watchKey))-Number(isWatched(a.watchKey)))||a.remainingMinutes-b.remainingMinutes);
+ const shown=oddsSignalCards.filter(card=>isWatched(card.watchKey)||!card.hasMarket||oddsSignalFilter==="ALL"||card.signal===oddsSignalFilter).slice().sort((a,b)=>(Number(isWatched(b.watchKey))-Number(isWatched(a.watchKey)))||a.remainingMinutes-b.remainingMinutes);
  $("oddsGamesList").innerHTML=shown.length?shown.map(card=>card.html).join(""):'<div class="empty">No games in this signal category right now.</div>';
 }
 function renderOdds(data){
@@ -363,7 +363,7 @@ function renderOdds(data){
    : '<div class="notice">WAITING · Live GFI game data is not available yet.</div>';
   const marketRows=rows.length?rows.map(row=>'<div class="result-row"><span><strong>'+esc(row.book)+'</strong><br><span class="muted">'+esc(row.label)+' · '+(row.point??'—')+'</span></span><span style="text-align:right"><strong>O '+fmtOdds(row.over?.price)+'</strong><br><strong>U '+fmtOdds(row.under?.price)+'</strong></span></div>').join(''):'<div class="notice">WAITING · No live DraftKings or FanDuel totals are available for this game. Pregame markets are hidden.</div>';
   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">LIVE'+(providerOnly?' · SCORE FEED PENDING':'')+'</span></div>'+liveMetricsBlock+marketRows+'</div>';
-  return {watchKey,signal:signal.key,remainingMinutes:Number.isFinite(Number(live?.projection?.remainingMinutes))?Number(live.projection.remainingMinutes):Infinity,html};
+  return {watchKey,signal:signal.key,hasMarket:rows.length>0,remainingMinutes:Number.isFinite(Number(live?.projection?.remainingMinutes))?Number(live.projection.remainingMinutes):Infinity,html};
  });
 
 
