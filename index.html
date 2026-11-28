@@ -202,7 +202,7 @@ let games=[];
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function formatHalf(period){const n=Number(period);return n===1?'H1':n===2?'H2':n>2?'OT'+(n-2):'Period '+esc(period??'—')}
 function renderGames(){
- $('gameCount').textContent=games.length;
+
  if(!games.length){$('games').innerHTML='<div class="empty">No NCAA games are listed for this date. Check back during the season or refresh.</div>';return}
  $('games').innerHTML=games.map(g=>{const status=(g.status||"Scheduled").toUpperCase();return `<div class="game-card"><div class="game-top"><span>${esc(g.shortName||g.name||"NCAA matchup")}</span><span class="status">${esc(status)}</span></div><div class="teams"><div class="team">${esc(g.away?.name||"Away")}</div><div class="score">${Number(g.away?.score??0)}</div><div class="team">${esc(g.home?.name||"Home")}</div><div class="score">${Number(g.home?.score??0)}</div></div><div class="sub" style="margin-top:8px">${g.state==="in"?formatHalf(g.period)+" · "+esc(g.clock):esc(g.date||"")}</div></div>`}).join("");
 }
@@ -307,12 +307,12 @@ function renderOdds(data){
   score:{id:event.id,state:"in",away:{name:event.awayTeam,score:null},home:{name:event.homeTeam,score:null}},
   providerOnly:true
  }));
- $('oddsGames').textContent=liveEntries.length;
+
  $('quotaSummary').textContent=data.dailyRemaining?data.dailyRemaining+' left today':'Available';
  renderOpportunities(data);
  if(!liveEntries.length){
-  $('teamTotalCount').textContent='0';
-  $('gameTotalCount').textContent='0';
+
+
   oddsSignalCards=[];
   ["oddsCountAll","oddsCountGreen","oddsCountYellow","oddsCountRed"].forEach(id=>$(id).textContent="0");
   $('oddsGamesList').innerHTML='<div class="empty">No NCAA games are currently in progress. Pregame markets are kept in the Pregame tab.</div>';
@@ -365,8 +365,8 @@ function renderOdds(data){
   const html='<div class="game-card"><div class="game-top"><strong>'+esc(event.awayTeam)+' at '+esc(event.homeTeam)+'</strong><span class="status">LIVE'+(providerOnly?' · SCORE FEED PENDING':'')+'</span></div>'+liveMetricsBlock+marketRows+'</div>';
   return {watchKey,signal:signal.key,remainingMinutes:Number.isFinite(Number(live?.projection?.remainingMinutes))?Number(live.projection.remainingMinutes):Infinity,html};
  });
- $('teamTotalCount').textContent=teamMarketCount;
- $('gameTotalCount').textContent=gameMarketCount;
+
+
  oddsSignalCards=rendered;
  bindWatchControls("oddsGamesList");
  $("oddsCountAll").textContent=rendered.length;
