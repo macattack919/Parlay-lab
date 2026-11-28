@@ -208,7 +208,7 @@ function renderGames(){
 }
 async function loadGames(){
  $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
- try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];oddsScoreGames=games;renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Updated "+new Date(d.updated||Date.now()).toLocaleTimeString();$('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Updated '+new Date(d.updated||Date.now()).toLocaleTimeString();if(window.latestOddsData)renderOdds(window.latestOddsData);}
+ try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];oddsScoreGames=games;renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Source response "+new Date(d.updated||Date.now()).toLocaleTimeString()+" · Checked "+new Date().toLocaleTimeString();$('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Source '+new Date(d.updated||Date.now()).toLocaleTimeString()+' · Checked '+new Date().toLocaleTimeString();if(window.latestOddsData)renderOdds(window.latestOddsData);}
  catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
  finally{$('refresh').disabled=false}
 }
@@ -652,7 +652,6 @@ $("enableSignalAlerts").addEventListener("click",async()=>{
 async function loadLive() {
  $('liveStatus').textContent = 'Refreshing ESPN game state and GFI projections…';
  $('refreshLive').disabled = true;
- $('floatingRefresh').disabled = true;
  try {
   const response = await fetch('/api/live?_ts=' + Date.now(), { cache: 'no-store' });
   const data = await response.json();
@@ -661,10 +660,13 @@ async function loadLive() {
   renderLiveGames(data);
   evaluateSignalBoard(data);
   if(window.latestOddsData)renderOdds(window.latestOddsData);
+  $('liveStatus').textContent += ' · Checked ' + new Date().toLocaleTimeString();
+  return true;
  } catch (error) {
   $('liveStatus').textContent = 'Live intelligence unavailable: ' + error.message;
   $('liveGamesList').innerHTML = '<div class="empty">Could not load live game details. ' + esc(error.message) + '</div>';
- } finally { liveRefreshInFlight = false; $('refreshLive').disabled = false; $('floatingRefresh').disabled = false; }
+  return false;
+ } finally { liveRefreshInFlight = false; $('refreshLive').disabled = false; }
 }
 $('refreshLive').addEventListener('click', loadLive);
 async function refreshAllData(){
@@ -672,31 +674,32 @@ async function refreshAllData(){
  if(button.dataset.refreshing==="true")return;
  button.dataset.refreshing="true";button.disabled=true;
  $('floatingRefreshLabel').textContent="Refreshing all data…";
- const results=await Promise.allSettled([loadGames(),loadLive(),loadOdds()]);
- const failed=results.filter(result=>result.status==="rejected").length;
+ const started=Date.now();
+ const results=await Promise.all([loadGames(),loadLive(),loadOdds()]);
+ const failed=results.filter(result=>result===false).length;
  button.dataset.refreshing="false";button.disabled=false;
  $('floatingRefreshLabel').textContent="Refresh all data";
- const summary=failed?"Some data sources could not refresh. Check each board for its status.":"All data sources refreshed.";
- $('feedStatus').textContent=summary+" ESPN scoreboard · "+new Date().toLocaleTimeString();
+ $('feedStatus').textContent=(failed?"Refresh finished with "+failed+" source error(s).":"All three sources checked.")+" · Finished "+new Date().toLocaleTimeString()+" · "+((Date.now()-started)/1000).toFixed(1)+"s";
 }
 $('floatingRefresh').addEventListener('click',refreshAllData);
 setInterval(() => { if (!document.hidden) loadLive(); }, 15000);
 
 async function loadOdds(){
- $('oddsStatus').textContent="Requesting NCAA totals from PropLine…";$('refreshOddsBoard').disabled=true;$('floatingRefresh').disabled=true;
+ $('oddsStatus').textContent="Requesting a fresh NCAA odds response from PropLine…";$('refreshOddsBoard').disabled=true;
  try{
-  const response=await fetch('/api/odds',{cache:'no-store'});
+  const response=await fetch('/api/odds?_ts='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
   const data=await response.json();
   if(!response.ok)throw new Error(data.error||("Request failed "+response.status));
   window.latestOddsData=data;
   renderOdds(data);
   captureOddsMovementSnapshots(data);
   const quota=data.dailyRemaining?(" · "+data.dailyRemaining+" API requests remaining today"):"";
-  $('oddsStatus').textContent="PropLine · Updated "+new Date(data.updated).toLocaleTimeString()+quota;
+  $('oddsStatus').textContent="PropLine · Source response "+new Date(data.updated).toLocaleTimeString()+" · Checked "+new Date().toLocaleTimeString()+quota;
+  return true;
  }catch(error){
   $('oddsStatus').textContent="Odds feed unavailable: "+error.message;
   $('oddsGamesList').innerHTML='<div class="empty">Check that PROPLINE_API_KEY is set in Vercel, then redeploy. '+esc(error.message)+'</div>';
- }finally{$('refreshOddsBoard').disabled=false;$('floatingRefresh').disabled=false}
+ }finally{$('refreshOddsBoard').disabled=false}
 }
 $('refreshOddsBoard').addEventListener('click',loadOdds);
 
