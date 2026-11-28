@@ -208,8 +208,8 @@ function renderGames(){
 }
 async function loadGames(){
  $('feedStatus').textContent="Refreshing ESPN scoreboard…";$('refresh').disabled=true;
- try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];oddsScoreGames=games;renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Source response "+new Date(d.updated||Date.now()).toLocaleTimeString()+" · Checked "+new Date().toLocaleTimeString();$('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Source '+new Date(d.updated||Date.now()).toLocaleTimeString()+' · Checked '+new Date().toLocaleTimeString();if(window.latestOddsData)renderOdds(window.latestOddsData);}
- catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>'}
+ try{const r=await fetch('/api/scores?league=ncaa',{cache:'no-store'});if(!r.ok)throw new Error("Scoreboard request returned "+r.status);const d=await r.json();games=d.games||[];oddsScoreGames=games;renderGames();gradeSignalHistory(games);$('feedStatus').textContent="ESPN scoreboard · Source response "+new Date(d.updated||Date.now()).toLocaleTimeString()+" · Checked "+new Date().toLocaleTimeString();$('oddsScoreStatus').textContent='ESPN scores · '+oddsScoreGames.filter(g=>g.state==='in').length+' games live · Source '+new Date(d.updated||Date.now()).toLocaleTimeString()+' · Checked '+new Date().toLocaleTimeString();if(window.latestOddsData)renderOdds(window.latestOddsData);return true;}
+ catch(e){$('feedStatus').textContent="Scoreboard unavailable: "+e.message;$('games').innerHTML='<div class="empty">Could not load the ESPN scoreboard. The parlay calculator remains available.</div>';return false}
  finally{$('refresh').disabled=false}
 }
 $('refresh').addEventListener('click',loadGames);
