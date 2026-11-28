@@ -261,7 +261,7 @@ function oddsBoardSignal(event, score){
  const p=live.projection;
  const remaining=Number(p.remainingMinutes);
  if(!lines && Number.isFinite(remaining) && remaining<=3) return {key:"YELLOW",label:"🔒 LINES CLOSED",color:"#9bb8d3",reason:"No FanDuel/DraftKings live total is currently available with 3 minutes or less remaining. The market may be closed.",live,lines:null};
- if(!lines || p.total===null || p.total===undefined || !Number.isFinite(Number(p.total))) return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Waiting for a matched FanDuel/DraftKings live total.",live,lines};
+ if(!lines || p.total===null || p.total===undefined || !Number.isFinite(Number(p.total))) return {key:"YELLOW",label:"WATCH",color:"#f4d58d",reason:"Waiting for a matched FanDuel/DraftKings live total.",live,lines,projection:Number.isFinite(Number(p.total))?Number(p.total):null,current:Number(p.currentTotal??(Number(live.home?.score||0)+Number(live.away?.score||0)))};
  const marketLine=lines.reduce((sum,line)=>sum+line.point,0)/lines.length;
  const edge=Number(p.total)-marketLine;
  const current=Number(p.currentTotal ?? (Number(live.home?.score||0)+Number(live.away?.score||0)));
@@ -351,13 +351,14 @@ function renderOdds(data){
   gameMarketCount+=rows.filter(row=>!row.team).length;
   const signal=oddsBoardSignal(event,score);
   const live=signal.live||window.latestLiveData?.games?.find(game=>clean(game.away?.name)===away&&clean(game.home?.name)===home);
-  const hasValidProjection=signal.projection!==null&&signal.projection!==undefined&&Number.isFinite(Number(signal.projection));
+  const projectionValue=signal.projection??live?.projection?.total;
+  const hasValidProjection=projectionValue!==null&&projectionValue!==undefined&&Number.isFinite(Number(projectionValue));
   const watchKey=gameWatchKey(event.awayTeam,event.homeTeam);
   const liveMetricsBlock=live
    ? '<div class="total-focus"><div class="total-focus-head"><span class="total-focus-signal" style="color:'+signal.color+'">'+esc(signal.label)+'</span><span><span class="total-focus-clock">'+esc(formatHalf(live.period))+' · '+esc(live.clock)+'</span>'+(live.context?.timeoutActive?'<span class="timeout-pill">TIMEOUT'+(live.context.timeoutTeamName?' · '+esc(live.context.timeoutTeamName):'')+'</span>':'')+'</span></div>'+
      '<div class="total-focus-scoreboard"><div class="total-focus-team"><span>'+esc(live.away?.name||event.awayTeam)+'</span><strong>'+Number(live.away?.score||0)+'</strong></div><div class="total-focus-team"><span>'+esc(live.home?.name||event.homeTeam)+'</span><strong>'+Number(live.home?.score||0)+'</strong></div></div>'+
      '<div class="total-focus-cell current"><small>CURRENT SCORE TOTAL</small><strong>'+Number(signal.current??(Number(live.home?.score||0)+Number(live.away?.score||0)))+'</strong></div>'+
-     '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+(hasValidProjection?Number(signal.projection).toFixed(1):'WAITING')+'</strong></div>'+
+     '<div class="total-focus-cell projected"><small>GFI PROJECTED FINAL</small><strong>'+(hasValidProjection?Number(projectionValue).toFixed(1):'WAITING')+'</strong></div>'+
      '<div class="total-focus-cell market"><small>SPORTSBOOK LIVE FULL-GAME TOTALS</small><div class="book-lines">'+(signal.lines||[]).map(line=>'<span class="book-chip">'+esc(line.book)+' <b>'+line.point+'</b></span>').join('')+'</div></div>'+
      '<div class="total-focus-note">'+(hasValidProjection&&signal.lines?.length?'Model vs market: '+(signal.edge>0?'+':'')+signal.edge.toFixed(1)+' pts · Scoring pace '+(signal.scoringPace===null?'—':signal.scoringPace.toFixed(2)+' pts/min')+' · Needed '+(signal.neededPace===null?'—':signal.neededPace.toFixed(2)+' pts/min'):!hasValidProjection?'GFI is waiting for a valid projection. Current score and live market lines are still shown.':'Waiting for FanDuel / DraftKings live full-game total.')+'</div></div>'
    : '<div class="notice">WAITING · Live GFI game data is not available yet.</div>';
@@ -464,7 +465,7 @@ $("exportOddsMovement")?.addEventListener("click",()=>{
 renderOddsMovementLog();
 
 function liveTotalMarket(game) {
- const clean = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const clean = value => cleanTeamName(value);
  const away = clean(game.away?.name), home = clean(game.home?.name);
  const event = (window.latestOddsData?.events || []).find(item => {
   const ea=clean(item.awayTeam), eh=clean(item.homeTeam);
